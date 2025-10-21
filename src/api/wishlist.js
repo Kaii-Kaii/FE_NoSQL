@@ -6,8 +6,9 @@ const STORAGE_KEY = 'wishlist'
 // Normalize incoming API product shape (uppercase) to internal lowercase like cart.js
 function normalize(product) {
   if (!product) return null
+  const rawId = product.MASACH ?? null
   return {
-    masach: product.MASACH ?? null,
+    masach: rawId != null ? String(rawId) : null,
     tensach: product.TENSACH ?? '',
     gia: Number(product.GIATIEN ?? 0),
     anhsach: product.URLSACH ?? product.ANHSACH ?? '',
@@ -21,12 +22,31 @@ export function getWishlist() {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
     // parsed saved with uppercase keys; return normalized
-    return parsed.map((it) => ({
-      masach: it.MASACH ?? null,
+    const normalized = parsed.map((it) => ({
+      masach: it.MASACH != null ? String(it.MASACH) : null,
       tensach: it.TENSACH ?? '',
       gia: Number(it.GIATIEN ?? 0),
       anhsach: it.ANHSACH ?? it.URLSACH ?? '',
     }))
+
+    const deduped = []
+    const seen = new Set()
+    for (const item of normalized) {
+      const id = item.masach
+      if (!id) {
+        deduped.push({ ...item })
+        continue
+      }
+      if (seen.has(id)) {
+        continue
+      }
+      seen.add(id)
+      deduped.push({ ...item })
+    }
+    if (deduped.length !== normalized.length) {
+      try { saveWishlist(deduped) } catch (e) {}
+    }
+    return deduped
   } catch (e) {
     console.warn('getWishlist parse error', e)
     return []
@@ -36,7 +56,7 @@ export function getWishlist() {
 export function saveWishlist(list) {
   try {
     const toSave = (list || []).map((it) => ({
-      MASACH: it.masach,
+      MASACH: it.masach != null ? String(it.masach) : null,
       TENSACH: it.tensach,
       GIATIEN: Number(it.gia || 0),
       ANHSACH: it.anhsach,
@@ -62,7 +82,8 @@ export function addToWishlist(product) {
 export function removeFromWishlist(masach) {
   try {
     const list = getWishlist()
-    const next = list.filter((i) => i.masach !== masach)
+    const targetId = masach != null ? String(masach) : null
+    const next = list.filter((i) => i.masach !== targetId)
     saveWishlist(next)
     return next
   } catch (e) {
@@ -86,10 +107,15 @@ export function toggleWishlist(product) {
 export function isInWishlist(masach) {
   try {
     const list = getWishlist()
-    return list.some((i) => i.masach === masach)
+    const targetId = masach != null ? String(masach) : null
+    return list.some((i) => i.masach === targetId)
   } catch (e) { return false }
 }
 
 export function getWishlistIds() {
-  return new Set(getWishlist().map((i) => i.masach))
+  const ids = []
+  for (const item of getWishlist()) {
+    if (item.masach != null) ids.push(String(item.masach))
+  }
+  return new Set(ids)
 }

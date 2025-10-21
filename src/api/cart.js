@@ -9,13 +9,38 @@ export function getCart() {
     if (!Array.isArray(parsed)) return [];
     // Expect stored items in API shape (MASACH, TENSACH, GIATIEN, ANHSACH/URLSACH, SOLUONG)
     // Return normalized lowercase shape used by components
-    return parsed.map((it) => ({
-      masach: it.MASACH ?? null,
+    const normalized = parsed.map((it) => ({
+      masach: it.MASACH != null ? String(it.MASACH) : null,
       tensach: it.TENSACH ?? "",
       gia: Number(it.GIATIEN ?? 0),
       anhsach: it.URLSACH ?? it.ANHSACH ?? "",
       soluong: Number(it.SOLUONG ?? 1), // default 1 nếu BE không trả
-    }));
+    }))
+
+    const merged = []
+    const indexById = new Map()
+    for (const item of normalized) {
+      if (!item.masach) {
+        merged.push({ ...item })
+        continue
+      }
+      if (!indexById.has(item.masach)) {
+        indexById.set(item.masach, merged.length)
+        merged.push({ ...item })
+      } else {
+        const idx = indexById.get(item.masach)
+        merged[idx].soluong = Number(merged[idx].soluong || 0) + Number(item.soluong || 0)
+        // prefer to keep latest metadata if it exists
+        merged[idx].tensach = item.tensach || merged[idx].tensach
+        merged[idx].gia = item.gia || merged[idx].gia
+        merged[idx].anhsach = item.anhsach || merged[idx].anhsach
+      }
+    }
+    if (merged.length !== normalized.length) {
+      // Persist deduplicated results back to storage so future reads stay clean
+      try { saveCart(merged) } catch (e) {}
+    }
+    return merged
   } catch (e) {
     console.warn("getCart: failed to parse cart from localStorage", e);
     return [];
@@ -27,7 +52,7 @@ export function saveCart(cart) {
     // Ensure we save the normalized shape
     // Save using API field names so backend/client agree on shape
     const toSave = (cart || []).map((it) => ({
-      MASACH: it.masach,
+      MASACH: it.masach != null ? String(it.masach) : null,
       TENSACH: it.tensach,
       GIATIEN: Number(it.gia || 0),
       ANHSACH: it.anhsach,
@@ -49,8 +74,10 @@ export function saveCart(cart) {
 export function addToCart(product) {
   const cart = getCart();
   // Incoming product must follow API fields (MASACH, TENSACH, GIATIEN, URLSACH/ANHSACH, SOLUONG)
+  const rawId = product.MASACH ?? null;
+  const normalizedId = rawId != null ? String(rawId) : null;
   const p = {
-    masach: product.MASACH ?? null,
+    masach: normalizedId,
     tensach: product.TENSACH ?? "",
     gia: Number(product.GIATIEN ?? 0),
     anhsach: product.URLSACH ?? product.ANHSACH ?? "",
@@ -72,7 +99,8 @@ export function updateCartItemQuantity(masach, qty) {
   try {
     const newQty = Math.max(0, Number(qty || 0));
     const cart = getCart();
-    const idx = cart.findIndex((it) => it.masach === masach);
+    const targetId = masach != null ? String(masach) : null;
+    const idx = cart.findIndex((it) => it.masach === targetId);
     if (idx === -1) return cart;
     if (newQty <= 0) {
       cart.splice(idx, 1);
@@ -91,7 +119,8 @@ export function updateCartItemQuantity(masach, qty) {
 export function removeFromCart(masach) {
   try {
     const cart = getCart();
-    const next = cart.filter((it) => it.masach !== masach);
+    const targetId = masach != null ? String(masach) : null;
+    const next = cart.filter((it) => it.masach !== targetId);
     saveCart(next);
     return next;
   } catch (e) {

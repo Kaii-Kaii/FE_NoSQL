@@ -559,12 +559,22 @@ const topBooksWishlistIds = ref(new Set());
 
 // Wishlist helpers
 function isWished(id) {
-  try { return wishlistIds.value.has(id) } catch (e) { return false }
+  try {
+    if (id == null) return false
+    return wishlistIds.value.has(String(id))
+  } catch (e) { return false }
 }
 function toggleWishlist(book) {
-  const wasWished = isWished(book.MASACH)
+  const rawId = book.MASACH || book.code || book._id || book.id
+  const bookId = rawId != null ? String(rawId) : null
+  if (!bookId) {
+    console.warn('Không tìm thấy mã sách để cập nhật yêu thích:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin sách để cập nhật yêu thích.', type: 'warning' }) } catch (e) {}
+    return
+  }
+  const wasWished = isWished(bookId)
   toggleWishlistApi({
-    MASACH: book.MASACH,
+    MASACH: bookId,
     TENSACH: book.TENSACH,
     GIATIEN: book.GIATIEN,
     URLSACH: book.URLSACH ?? book.ANHSACH,
@@ -586,11 +596,20 @@ function handleCategorySelected(categoryId) {
 
 // Xử lý Wishlist cho Top Books
 function isWishedTopBook(id) {
-  try { return topBooksWishlistIds.value.has(id) } catch (e) { return false }
+  try {
+    if (id == null) return false
+    return topBooksWishlistIds.value.has(String(id))
+  } catch (e) { return false }
 }
 
 function toggleWishlistTopBook(book) {
-  const bookId = book._id || book.id
+  const rawId = book.code || book._id || book.id
+  const bookId = rawId != null ? String(rawId) : null
+  if (!bookId) {
+    console.warn('Không tìm thấy mã sách (top book) để cập nhật yêu thích:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin sách để cập nhật yêu thích.', type: 'warning' }) } catch (e) {}
+    return
+  }
   const wasWished = isWishedTopBook(bookId)
   
   // Convert API response to cart format
@@ -601,12 +620,8 @@ function toggleWishlistTopBook(book) {
     URLSACH: book.coverUrl || book.image,
   })
   
-  topBooksWishlistIds.value = new Set(topBooksWishlistIds.value)
-  if (wasWished) {
-    topBooksWishlistIds.value.delete(bookId)
-  } else {
-    topBooksWishlistIds.value.add(bookId)
-  }
+  wishlistIds.value = getWishlistIds()
+  topBooksWishlistIds.value = getWishlistIds()
   
   try {
     ElNotification({
@@ -619,16 +634,23 @@ function toggleWishlistTopBook(book) {
 
 // Thêm top book vào giỏ
 function handleAddToCartTopBook(book) {
-  const bookId = book._id || book.id
+  const rawId = book.code || book.MASACH || book._id || book.id
+  const bookId = rawId != null ? String(rawId) : null
+  if (!bookId) {
+    console.warn('Không tìm thấy mã sách (top book) để thêm vào giỏ:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin sách để thêm vào giỏ hàng.', type: 'warning' }) } catch (e) {}
+    return
+  }
+
   addToCart({
     MASACH: bookId,
-    TENSACH: book.name,
-    GIATIEN: book.price,
-    URLSACH: book.coverUrl || book.image,
+    TENSACH: book.name || book.TENSACH,
+    GIATIEN: book.price ?? book.GIATIEN,
+    URLSACH: book.coverUrl || book.image || book.URLSACH || book.ANHSACH,
     SOLUONG: 1,
-  });
+  })
   try {
-    ElNotification({ title: 'Success', message: `Đã thêm vào giỏ: ${book.name}`, type: 'success' })
+    ElNotification({ title: 'Success', message: `Đã thêm vào giỏ: ${book.name || book.TENSACH}`, type: 'success' })
   } catch (e) {}
 }
 
@@ -661,7 +683,25 @@ onMounted(async () => {
   // fetch 5 trending books (từ listing API)
   try {
     const res = await listBook({ per_page: 5, page: 1 })
-    books.value = res?.data ?? res ?? []
+    const rawBooks = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
+    books.value = rawBooks.map((book) => {
+      const fallbackStock = book.inStock ?? book.SOLUONG
+      const rawId = book.code || book.MASACH || book._id || book.id
+      return {
+        ...book,
+        MASACH: rawId != null ? String(rawId) : null,
+        TENSACH: book.name || book.TENSACH,
+        TACGIA: book.author || book.TACGIA || 'Unknown',
+        GIATIEN: book.price ?? book.GIATIEN,
+        GIAGOC: book.originalPrice ?? book.GIAGOC,
+        URLSACH: book.coverUrl || book.image || book.URLSACH || book.ANHSACH,
+        ANHSACH: book.coverUrl || book.image || book.ANHSACH || book.URLSACH,
+        MADANHMUC: book.category?.code || book.categoryCode || book.MADANHMUC,
+        category: book.category || book.categoryData || null,
+        SOLUONG: fallbackStock ?? 0,
+        TRANGTHAI: book.status || book.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng')
+      }
+    })
   } catch (e) {
     books.value = []
   }
@@ -724,16 +764,23 @@ function goToCart() {
 
 // Thêm sản phẩm vào giỏ từ API
 function handleAddToCart(book) {
-  // pass API-shaped object (uppercase keys) — addToCart expects API fields like MASACH, URLSACH
+  const rawId = book.MASACH || book.code || book._id || book.id
+  const bookId = rawId != null ? String(rawId) : null
+  if (!bookId) {
+    console.warn('Không tìm thấy mã sách để thêm vào giỏ:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin sách để thêm vào giỏ hàng.', type: 'warning' }) } catch (e) {}
+    return
+  }
+
   addToCart({
-    MASACH: book.MASACH,
-    TENSACH: book.TENSACH,
-    GIATIEN: book.GIATIEN,
-    URLSACH: book.URLSACH ?? book.ANHSACH,
+    MASACH: bookId,
+    TENSACH: book.TENSACH || book.name,
+    GIATIEN: book.GIATIEN ?? book.price,
+    URLSACH: book.URLSACH ?? book.ANHSACH ?? book.coverUrl ?? book.image,
     SOLUONG: 1,
-  });
+  })
   try {
-    ElNotification({ title: 'Success', message: `Đã thêm vào giỏ: ${book.TENSACH}`, type: 'success' })
+    ElNotification({ title: 'Success', message: `Đã thêm vào giỏ: ${book.TENSACH || book.name}`, type: 'success' })
   } catch (e) {}
 }
 

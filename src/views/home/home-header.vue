@@ -138,7 +138,9 @@
                 <a href="#"><i class="fab fa-youtube"></i></a>
               </div>
               <div class="user-login">
-                <a href="#"><i class="fa-solid fa-user"></i></a>
+                <router-link to="/home/profile" class="vs-icon" title="Thông tin cá nhân">
+                  <i class="fa-solid fa-user"></i>
+                </router-link>
               </div>
             </div>
           </div>

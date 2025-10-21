@@ -40,6 +40,14 @@ export function resetPassword(data) {
   })
 }
 
+export function changePassword(data) {
+  return request({
+    url: '/Auth/change-password',
+    method: 'post',
+    data
+  })
+}
+
 
 export function refreshToken() {
   return request({
