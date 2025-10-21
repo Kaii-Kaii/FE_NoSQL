@@ -16,6 +16,13 @@ export function getTopBooks(limit = 5) {
   })
 }
 
+export function getBookByCode(code) {
+  return request({
+    url: `/Books/${encodeURIComponent(code)}`,
+    method: 'get'
+  })
+}
+
 export function listBook(data) {
   // Build query params
   let url = `/book-list?per_page=${data.per_page}&page=${data.page}`;

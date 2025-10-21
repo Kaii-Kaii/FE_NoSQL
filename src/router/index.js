@@ -30,11 +30,20 @@ const routes = [
         component: () => import("@/views/book/book-list.vue"),
       },
       {
+        path: "books/:code",
+        name: "book-details",
+        component: () => import("@/views/book/book-details.vue"),
+      },
+      {
         path: "wishlist",
         name: "wishlist",
         component: () => import("@/views/wishlist/wishlist.vue"),
       },
-      
+      {
+        path: "profile",
+        name: "profile",
+        component: () => import("@/views/user/profile.vue"),
+      },
     ],
   },
   {

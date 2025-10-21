@@ -61,6 +61,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { listBook } from '@/api/book'
 import { addToCart } from '@/api/cart'
 import { toggleWishlist as toggleWishlistApi, getWishlistIds } from '@/api/wishlist'
@@ -70,7 +71,7 @@ import { ElNotification } from 'element-plus'
 // Props
 const props = defineProps({
   categoryId: {
-    type: Number,
+    type: [Number, String],
     required: true
   },
   title: {
@@ -88,12 +89,14 @@ const props = defineProps({
 })
 
 const allBooks = ref([])
+const router = useRouter()
 
 // Computed: Filter và giới hạn số lượng sách hiển thị
 const displayBooks = computed(() => {
-  const filtered = allBooks.value.filter(
-    book => book.MADANHMUC === props.categoryId
-  )
+  const filtered = allBooks.value.filter(book => {
+    const bookCategory = book.MADANHMUC ?? book.category?.code
+    return bookCategory == props.categoryId
+  })
   return filtered.slice(0, props.limit)
 })
 
@@ -105,13 +108,33 @@ const fetchBooks = async () => {
       per_page: 100, // Lấy nhiều để đủ data filter
     })
     
+    let booksData = []
     if (response?.data) {
-      allBooks.value = Array.isArray(response.data) ? response.data : []
+      booksData = Array.isArray(response.data) ? response.data : []
     } else if (Array.isArray(response)) {
-      allBooks.value = response
-    } else {
-      allBooks.value = []
+      booksData = response
     }
+
+    allBooks.value = booksData.map(book => {
+      const fallbackStock = book.inStock ?? book.SOLUONG
+      const rawId = book.code || book.MASACH || book._id || book.id
+      return {
+        ...book,
+        MASACH: rawId != null ? String(rawId) : null,
+        TENSACH: book.name || book.TENSACH,
+        TACGIA: book.author || book.TACGIA || 'Unknown',
+        GIATIEN: book.price ?? book.GIATIEN,
+        GIAGOC: book.originalPrice ?? book.GIAGOC,
+        URLSACH: book.coverUrl || book.image || book.URLSACH || book.ANHSACH,
+        ANHSACH: book.coverUrl || book.image || book.ANHSACH || book.URLSACH,
+        MADANHMUC: book.category?.code || book.categoryCode || book.MADANHMUC,
+        category: book.category || book.categoryData || null,
+        ISHOT: book.isHot || book.ISHOT || false,
+        DISCOUNT: book.discount || book.DISCOUNT || 0,
+        SOLUONG: fallbackStock ?? 0,
+        TRANGTHAI: book.status || book.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng')
+      }
+    })
     
     console.log(`Books for category ${props.categoryId}:`, displayBooks.value.length)
   } catch (error) {
@@ -135,15 +158,27 @@ const handleImageError = (e) => {
 
 // Xem chi tiết sách
 const viewDetail = (book) => {
-  console.log('View detail:', book)
-  alert('Chức năng xem chi tiết đang được phát triển')
+  const bookCode = book.MASACH || book.code || book.id || book._id
+  if (!bookCode) {
+    console.warn('Không tìm thấy mã sách để điều hướng chi tiết:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin chi tiết cho sách này.', type: 'warning' }) } catch (e) {}
+    return
+  }
+  router.push(`/home/books/${bookCode}`)
 }
 
 // Thêm vào giỏ hàng
 const handleAddToCart = (book) => {
+  const bookCode = book.MASACH || book.code || book.id || book._id
+  if (!bookCode) {
+    console.warn('Không tìm thấy mã sách để thêm vào giỏ:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin sách để thêm vào giỏ hàng.', type: 'warning' }) } catch (e) {}
+    return
+  }
+
   try {
     addToCart({
-      MASACH: book.MASACH,
+      MASACH: bookCode,
       TENSACH: book.TENSACH,
       GIATIEN: book.GIATIEN,
       URLSACH: book.URLSACH ?? book.ANHSACH,
@@ -158,17 +193,27 @@ const handleAddToCart = (book) => {
 
 // Wishlist reactive ids for current view
 const wishlistIds = ref(getWishlistIds())
-function isWished(id) { return wishlistIds.value.has(id) }
+function isWished(id) {
+  if (id == null) return false
+  return wishlistIds.value.has(String(id))
+}
 function toggleWishlist(book) {
+  const rawId = book.MASACH || book.code || book.id || book._id
+  const bookId = rawId != null ? String(rawId) : null
+  if (!bookId) {
+    console.warn('Không tìm thấy mã sách để cập nhật yêu thích:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin sách để cập nhật yêu thích.', type: 'warning' }) } catch (e) {}
+    return
+  }
   toggleWishlistApi({
-    MASACH: book.MASACH,
+    MASACH: bookId,
     TENSACH: book.TENSACH,
     GIATIEN: book.GIATIEN,
     URLSACH: book.URLSACH ?? book.ANHSACH,
   })
   wishlistIds.value = getWishlistIds()
   try {
-    const wished = wishlistIds.value.has(book.MASACH)
+    const wished = wishlistIds.value.has(bookId)
     ElNotification({
       title: 'Success',
       message: wished ? `Đã thêm vào yêu thích: ${book.TENSACH}` : `Đã bỏ khỏi yêu thích: ${book.TENSACH}`,
