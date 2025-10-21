@@ -15,8 +15,9 @@
         <div class="col-lg-3">
           <div class="profile-sidebar">
             <div class="profile-avatar">
-              <div class="avatar-circle">
-                <i class="fas fa-user"></i>
+              <div class="avatar-circle" :class="{ 'with-image': !!displayAvatar }">
+                <img v-if="displayAvatar" :src="displayAvatar" alt="Avatar" />
+                <i v-else class="fas fa-user"></i>
               </div>
               <h4 class="user-name mt-3">{{ userInfo.fullName || 'Người dùng' }}</h4>
               <p class="user-email">{{ userInfo.email }}</p>
@@ -45,6 +46,59 @@
             <div class="content-body">
               <form @submit.prevent="updateProfile">
                 <div class="row g-3">
+                  <div class="col-12 form-group-animated">
+                    <label class="form-label">Ảnh đại diện</label>
+                    <div class="avatar-upload">
+                      <div class="avatar-preview" :class="{ 'has-image': !!displayAvatar }">
+                        <img v-if="displayAvatar" :src="displayAvatar" alt="Avatar preview">
+                        <i v-else class="fas fa-user"></i>
+                      </div>
+                      <div class="avatar-actions">
+                        <label class="btn btn-outline-secondary">
+                          <i class="fas fa-upload"></i>
+                          Chọn ảnh
+                          <input
+                            ref="avatarInputRef"
+                            type="file"
+                            class="d-none"
+                            accept="image/*"
+                            @change="handleAvatarChange"
+                          >
+                        </label>
+                        <button
+                          v-if="(displayAvatar && !removeAvatar) || avatarFileUrl"
+                          type="button"
+                          class="btn btn-outline-danger"
+                          @click="handleRemoveAvatar"
+                        >
+                          <i class="fas fa-trash"></i>
+                          Xóa ảnh
+                        </button>
+                        <button
+                          v-if="avatarFileUrl"
+                          type="button"
+                          class="btn btn-outline-secondary"
+                          @click="handleCancelNewAvatar"
+                        >
+                          <i class="fas fa-undo"></i>
+                          Hủy ảnh mới
+                        </button>
+                        <button
+                          v-if="removeAvatar && originalAvatarUrl"
+                          type="button"
+                          class="btn btn-outline-secondary"
+                          @click="handleRestoreAvatar"
+                        >
+                          <i class="fas fa-undo-alt"></i>
+                          Khôi phục ảnh cũ
+                        </button>
+                      </div>
+                    </div>
+                    <p class="form-text text-muted mt-2">
+                      Hỗ trợ định dạng JPG, PNG (tối đa 5MB).
+                      <span v-if="removeAvatar" class="text-danger fw-semibold">Ảnh hiện tại sẽ bị xóa khi lưu.</span>
+                    </p>
+                  </div>
                   <div class="col-md-6 form-group-animated">
                     <label class="form-label">Họ và tên</label>
                     <input 
@@ -162,7 +216,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCustomerByCode, updateCustomer } from '@/api/customer'
 import { changePassword as changePasswordApi } from '@/api/auth'
@@ -175,6 +229,11 @@ const updating = ref(false)
 const changingPassword = ref(false)
 const activeTab = ref('info')
 const userInfo = ref(null)
+const avatarInputRef = ref(null)
+const avatarFile = ref(null)
+const avatarFileUrl = ref('')
+const originalAvatarUrl = ref('')
+const removeAvatar = ref(false)
 
 const formData = ref({
   fullName: '',
@@ -188,6 +247,52 @@ const passwordForm = ref({
   newPassword: '',
   confirmPassword: ''
 })
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB limit
+
+const displayAvatar = computed(() => {
+  if (avatarFileUrl.value) return avatarFileUrl.value
+  if (removeAvatar.value) return ''
+  return originalAvatarUrl.value
+})
+
+const resolveAvatarUrl = (avatar) => {
+  if (!avatar) return ''
+  const value = String(avatar)
+  if (/^https?:\/\//i.test(value)) return value
+  if (value.startsWith('/')) return value
+  if (value.startsWith('uploads/')) return `/${value}`
+  // Fallback path; adjust if backend returns specific folder
+  return `/uploads/avatars/${value}`
+}
+
+const clearAvatarSelection = () => {
+  if (avatarFileUrl.value) {
+    URL.revokeObjectURL(avatarFileUrl.value)
+    avatarFileUrl.value = ''
+  }
+  avatarFile.value = null
+  if (avatarInputRef.value) {
+    avatarInputRef.value.value = ''
+  }
+}
+
+const resetAvatarState = (newOriginal) => {
+  clearAvatarSelection()
+  removeAvatar.value = false
+  originalAvatarUrl.value = newOriginal ? resolveAvatarUrl(newOriginal) : ''
+}
+
+const updateCachedUser = (partial) => {
+  try {
+    const stored = localStorage.getItem('user')
+    const base = stored ? JSON.parse(stored) : {}
+    const updated = { ...base, ...partial }
+    localStorage.setItem('user', JSON.stringify(updated))
+  } catch (e) {
+    console.warn('Không thể cập nhật bộ nhớ phiên người dùng:', e)
+  }
+}
 
 // Get current user from localStorage
 const currentUser = computed(() => {
@@ -230,6 +335,7 @@ const fetchUserInfo = async () => {
         phone: currentUser.value.phone || '',
         address: currentUser.value.address || ''
       }
+      resetAvatarState(currentUser.value.avatar)
       console.log('Set userInfo from localStorage:', userInfo.value)
     } else {
       console.log('No currentUser data available')
@@ -253,6 +359,14 @@ const fetchUserInfo = async () => {
         phone: response.phone || response.dienthoai || currentUser.value?.phone || '',
         address: response.address || response.diachi || currentUser.value?.address || ''
       }
+      resetAvatarState(response.avatar || response.avatarUrl || response.avatarPath)
+      updateCachedUser({
+        fullName: formData.value.fullName,
+        email: formData.value.email,
+        phone: formData.value.phone,
+        address: formData.value.address,
+        avatar: response.avatar || response.avatarUrl || response.avatarPath || null
+      })
       console.log('Customer info loaded from API:', userInfo.value)
     } else {
       // Fallback to localStorage data
@@ -265,6 +379,7 @@ const fetchUserInfo = async () => {
           phone: currentUser.value.phone || '',
           address: currentUser.value.address || ''
         }
+        resetAvatarState(currentUser.value.avatar)
       }
     }
   } catch (error) {
@@ -279,6 +394,7 @@ const fetchUserInfo = async () => {
         phone: currentUser.value.phone || '',
         address: currentUser.value.address || ''
       }
+      resetAvatarState(currentUser.value.avatar)
     }
   } finally {
     loading.value = false
@@ -292,7 +408,19 @@ const updateProfile = async () => {
 
   updating.value = true
   try {
-    const response = await updateCustomer(customerCode, formData.value)
+    const payload = {
+      fullName: formData.value.fullName,
+      email: formData.value.email,
+      phone: formData.value.phone,
+      address: formData.value.address,
+      removeAvatar: removeAvatar.value,
+    }
+
+    if (avatarFile.value) {
+      payload.avatarFile = avatarFile.value
+    }
+
+    const response = await updateCustomer(customerCode, payload)
 
     if (response) {
       ElNotification({
@@ -301,12 +429,10 @@ const updateProfile = async () => {
         type: 'success'
       })
 
-      // Update localStorage
-      const updatedUser = { ...currentUser.value, ...formData.value }
-      localStorage.setItem('user', JSON.stringify(updatedUser))
-      
-      // Refresh user info
+      // Refresh user info và đặt lại trạng thái avatar
       await fetchUserInfo()
+      clearAvatarSelection()
+      removeAvatar.value = false
     }
   } catch (error) {
     console.error('Error updating profile:', error)
@@ -318,6 +444,56 @@ const updateProfile = async () => {
   } finally {
     updating.value = false
   }
+}
+
+const handleAvatarChange = (event) => {
+  try {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      ElNotification({
+        title: 'Lỗi',
+        message: 'Vui lòng chọn tệp hình ảnh hợp lệ',
+        type: 'error'
+      })
+      clearAvatarSelection()
+      return
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      ElNotification({
+        title: 'Lỗi',
+        message: 'Ảnh tối đa 5MB',
+        type: 'error'
+      })
+      clearAvatarSelection()
+      return
+    }
+
+    clearAvatarSelection()
+    avatarFile.value = file
+    avatarFileUrl.value = URL.createObjectURL(file)
+    removeAvatar.value = false
+  } catch (error) {
+    console.error('handleAvatarChange error:', error)
+    clearAvatarSelection()
+  }
+}
+
+const handleRemoveAvatar = () => {
+  clearAvatarSelection()
+  removeAvatar.value = Boolean(originalAvatarUrl.value)
+}
+
+const handleCancelNewAvatar = () => {
+  clearAvatarSelection()
+  removeAvatar.value = false
+}
+
+const handleRestoreAvatar = () => {
+  removeAvatar.value = false
+  clearAvatarSelection()
 }
 
 // Change password
@@ -407,6 +583,10 @@ const handleLogout = () => {
 onMounted(() => {
   fetchUserInfo()
 })
+
+onUnmounted(() => {
+  clearAvatarSelection()
+})
 </script>
 
 <style scoped>
@@ -445,6 +625,19 @@ onMounted(() => {
   color: white;
   font-size: 48px;
   box-shadow: 0 4px 12px rgba(209, 112, 87, 0.3);
+}
+
+.avatar-circle.with-image {
+  background: transparent;
+  box-shadow: none;
+}
+
+.avatar-circle.with-image img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
 }
 
 .user-name {
@@ -499,6 +692,47 @@ onMounted(() => {
   border-radius: 12px;
   padding: 30px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.avatar-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #b0b0b0;
+  border: 2px dashed #dcdcdc;
+  transition: all 0.3s ease;
+}
+
+.avatar-preview.has-image {
+  border-style: solid;
+  border-color: transparent;
+  background: transparent;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .content-header {
