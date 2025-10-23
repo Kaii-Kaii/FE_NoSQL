@@ -18,4 +18,52 @@ export async function confirmOrder(customerCode, orderCode) {
   })
 }
 
-export default { createOrder, getOrdersByCustomer, confirmOrder }
+// Lấy chi tiết đơn hàng theo mã
+export async function getOrderByCode(orderCode) {
+  return request({
+    url: `/Orders/${encodeURIComponent(orderCode)}`,
+    method: 'get'
+  })
+}
+
+// Lấy danh sách đơn hàng cho trang quản trị
+export async function getAdminOrders(params = {}) {
+  const { page = 1, pageSize = 100, status } = params
+  const query = { page, pageSize }
+  if (status) {
+    query.status = status
+  }
+  return request({
+    url: '/Admin/orders',
+    method: 'get',
+    params: query
+  })
+}
+
+// Cập nhật trạng thái đơn hàng trên trang quản trị
+export async function updateAdminOrderStatus(customerCode, orderCode, status) {
+  return request({
+    url: `/Admin/orders/${encodeURIComponent(customerCode)}/${encodeURIComponent(orderCode)}/status`,
+    method: 'put',
+    params: {
+      status,
+      customerCode,
+      orderCode
+    },
+    data: {
+      status,
+      Status: status,
+      customerCode,
+      orderCode
+    }
+  })
+}
+
+export default {
+  createOrder,
+  getOrdersByCustomer,
+  confirmOrder,
+  getOrderByCode,
+  getAdminOrders,
+  updateAdminOrderStatus
+}
