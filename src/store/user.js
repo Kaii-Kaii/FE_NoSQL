@@ -82,7 +82,10 @@ const actions = {
             // chờ ngắn để người dùng kịp thấy thông báo thành công
             await new Promise((resolve) => setTimeout(resolve, 300))
 
-            await router.replace({ name: 'home' })
+            const isAdmin = (resData?.role || '').toLowerCase() === 'admin'
+            const targetRoute = isAdmin ? { name: 'admin-order' } : { name: 'home' }
+
+            await router.replace(targetRoute)
         } catch (error) {
             ElMessage.error(error?.response?.data?.message || 'Đăng nhập thất bại!')
             throw error

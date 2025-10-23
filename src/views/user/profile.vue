@@ -26,6 +26,9 @@
               <a href="#" @click.prevent="activeTab = 'info'" :class="{ active: activeTab === 'info' }">
                 <i class="fas fa-user-circle"></i> Thông tin cá nhân
               </a>
+              <a href="#" @click.prevent="activeTab = 'orders'" :class="{ active: activeTab === 'orders' }">
+                <i class="fas fa-shopping-bag"></i> Lịch sử đơn hàng
+              </a>
               <a href="#" @click.prevent="activeTab = 'password'" :class="{ active: activeTab === 'password' }">
                 <i class="fas fa-lock"></i> Đổi mật khẩu
               </a>
@@ -150,6 +153,16 @@
             </div>
           </div>
 
+          <!-- Order History Tab -->
+          <div v-show="activeTab === 'orders'" class="profile-content">
+            <div class="content-header">
+              <h3><i class="fas fa-shopping-bag"></i> Lịch sử đơn hàng</h3>
+            </div>
+            <div class="content-body">
+              <OrderHistory :customer-code="customerCode" :active="activeTab === 'orders'" />
+            </div>
+          </div>
+
           <!-- Change Password Tab -->
           <div v-show="activeTab === 'password'" class="profile-content">
             <div class="content-header">
@@ -216,13 +229,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { getCustomerByCode, updateCustomer } from '@/api/customer'
 import { changePassword as changePasswordApi } from '@/api/auth'
 import { ElNotification } from 'element-plus'
+import OrderHistory from './components/order-history.vue'
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(false)
 const updating = ref(false)
@@ -249,12 +264,20 @@ const passwordForm = ref({
 })
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB limit
+const allowedTabs = ['info', 'orders', 'password']
 
 const displayAvatar = computed(() => {
   if (avatarFileUrl.value) return avatarFileUrl.value
   if (removeAvatar.value) return ''
   return originalAvatarUrl.value
 })
+
+const syncActiveTabFromRoute = () => {
+  const queryTab = typeof route.query.tab === 'string' ? route.query.tab : ''
+  if (queryTab && allowedTabs.includes(queryTab) && queryTab !== activeTab.value) {
+    activeTab.value = queryTab
+  }
+}
 
 const resolveAvatarUrl = (avatar) => {
   if (!avatar) return ''
@@ -310,6 +333,8 @@ const currentUser = computed(() => {
   console.log('currentUser is null')
   return null
 })
+
+const customerCode = computed(() => currentUser.value?.code || '')
 
 // Get customer code from current user
 const getCustomerCode = () => {
@@ -580,7 +605,29 @@ const handleLogout = () => {
   }
 }
 
+watch(
+  () => route.query.tab,
+  () => {
+    syncActiveTabFromRoute()
+  }
+)
+
+watch(activeTab, (tab) => {
+  if (!allowedTabs.includes(tab)) return
+  const currentTab = typeof route.query.tab === 'string' ? route.query.tab : undefined
+  if (tab === 'info' && !currentTab) return
+  if (currentTab === tab) return
+  const nextQuery = { ...route.query }
+  if (tab === 'info') {
+    delete nextQuery.tab
+  } else {
+    nextQuery.tab = tab
+  }
+  router.replace({ name: 'profile', query: nextQuery }).catch(() => {})
+})
+
 onMounted(() => {
+  syncActiveTabFromRoute()
   fetchUserInfo()
 })
 
