@@ -18,6 +18,23 @@ request.interceptors.request.use(
       config.headers = config.headers || {}
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    if (!config.headers) {
+      config.headers = {}
+    }
+
+    try {
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser)
+        if (parsedUser?.role) {
+          // Surface the role for lightweight role-based filters like RoleAuthorizeAttribute
+          config.headers['X-Role'] = parsedUser.role
+        }
+      }
+    } catch (err) {
+      console.warn('Unable to parse stored user for role header', err)
+    }
     return config
   },
   error => Promise.reject(error)
