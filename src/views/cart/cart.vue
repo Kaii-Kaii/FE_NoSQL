@@ -122,7 +122,7 @@
           </div>
 
             <div class="summary-actions">
-              <button class="btn-checkout" @click="checkout">Thanh toán</button>
+              <button class="btn-checkout" :disabled="savingOrder" @click="checkout">Thanh toán</button>
               <button class="btn-clear" @click="clearCart">Xóa giỏ hàng</button>
             </div>
           </div>
@@ -139,7 +139,7 @@
       <img :src="qrUrl" alt="VietQR" class="qr-image" />
       <p class="note">Quét QR bằng ứng dụng ngân hàng để hoàn tất thanh toán.</p>
       <div class="qr-actions">
-        <button class="btn-checkout" @click="saveOrderAndClear">Đã thanh toán — Lưu đơn</button>
+  <button class="btn-checkout" :disabled="savingOrder" @click="saveOrderAndClear">Đã thanh toán — Lưu đơn</button>
         <button class="btn-clear" @click="showQr=false">Đóng</button>
       </div>
     </div>
@@ -165,6 +165,7 @@ const discountCode = ref('')
 const discountMessage = ref('')
 const discountDetail = ref(null)
 const paymentMethod = ref('Tiền mặt')
+const savingOrder = ref(false)
 
 onMounted(() => {
   cart.value = getCart()
@@ -249,6 +250,17 @@ function onQtyChange(item) {
   saveAndEmit()
 }
 
+function getCurrentCustomerCode() {
+  try {
+    const raw = localStorage.getItem('user')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed?.code || null
+  } catch (e) {
+    return null
+  }
+}
+
 function checkout() {
   if (cart.value.length === 0) {
     alert('Giỏ hàng trống')
@@ -268,66 +280,67 @@ function checkout() {
 }
 
 async function saveOrderAndClear() {
+  if (savingOrder.value) return
   try {
-    // determine current user id from localStorage (login stores 'user')
-    let currentUserId = null
-    try {
-      const u = localStorage.getItem('user')
-      if (u) {
-        const parsed = JSON.parse(u)
-        // try several possible property names used across API/backends
-        currentUserId = parsed?.id ?? parsed?.ID ?? parsed?.MANGUOIDUNG ?? parsed?.manguoidung ?? parsed?.MA_NGUOI_DUNG ?? null
-      }
-    } catch (e) {
-      currentUserId = null
-    }
+    savingOrder.value = true
 
-    if (!currentUserId) {
-      // if no logged-in user, ask to login
-      try { ElNotification({ title: 'Warning', message: 'Vui lòng đăng nhập trước khi lưu đơn hàng', type: 'warning' }) } catch (e) { alert('Vui lòng đăng nhập trước khi lưu đơn hàng') }
+    const customerCode = getCurrentCustomerCode()
+    if (!customerCode) {
+      ElNotification({ title: 'Warning', message: 'Vui lòng đăng nhập trước khi lưu đơn hàng', type: 'warning' })
       showQr.value = false
       return
     }
 
-    const payload = {
-      manguoidung: currentUserId,
-      items: cart.value.map(i => ({
-        masach: i.masach,
-        gia: i.gia,
-        soluong: i.soluong
-      }))
-    }
-  // include discount code if present (backend will validate and apply)
-    if (discountCode.value) {
-      payload.MA_GIAM_GIA = discountCode.value
-      // also send ma_code (lowercase) which OrderController expects
-      payload.ma_code = discountCode.value
-    }
-
-    // include payment method for backend (hinhthuc_thanhtoan)
-    if (paymentMethod.value) {
-      payload.hinhthuc_thanhtoan = paymentMethod.value
-    }
-
-  const res = await createOrder(payload)
-
-    // `createOrder` uses the request wrapper which returns `response.data` directly
-    if (res?.success) {
-      const madonhang = res.madonhang
-      notifySuccess('Success', madonhang ? `Đã thanh toán và lưu đơn hàng ${madonhang}` : 'Đã thanh toán và lưu đơn hàng thành công')
-      // clear local cart and notify other parts of the app to refresh (books stock changed)
-  clearCart()
-  try { setCartDiscount('') } catch (e) {}
-  try { clearCartDiscountDetail() } catch (e) {}
-  try { if (typeof emitEvent === 'function') emitEvent('books-changed') } catch (e) {}
+    if (!cart.value.length) {
+      ElNotification({ title: 'Warning', message: 'Giỏ hàng trống, không thể tạo đơn hàng', type: 'warning' })
       showQr.value = false
-    } else {
-      console.error('API trả về lỗi', res?.data)
-      try { ElNotification({ title: 'Error', message: 'Có lỗi khi lưu đơn hàng', type: 'error' }) } catch (e) { alert('Có lỗi khi lưu đơn hàng') }
+      return
+    }
+
+      const methodDisplay = paymentMethod.value || 'Tiền mặt'
+      const methodCode = methodDisplay === 'Chuyển khoản' ? 'ChuyenKhoan' : 'TienMat'
+
+    const payload = {
+      customerCode,
+      items: cart.value.map((item) => ({
+        bookCode: String(item.masach),
+        quantity: Number(item.soluong) || 1
+      })),
+        paymentMethod: methodCode,
+        paymentMethodDisplay: methodDisplay
+    }
+
+    if (discountCode.value) {
+      payload.discountCode = discountCode.value
+    }
+
+    const res = await createOrder(payload)
+
+    if (res && typeof res === 'object' && 'success' in res && res.success === false) {
+      throw new Error(res.message || 'Tạo đơn hàng thất bại')
+    }
+
+    const orderCode = res?.code || res?.orderCode || res?.data?.code || null
+    notifySuccess('Success', orderCode ? `Đã tạo đơn hàng ${orderCode}` : 'Đã tạo đơn hàng thành công')
+
+    clearCart()
+    try {
+      if (typeof emitEvent === 'function') {
+        emitEvent('books-changed')
+          emitEvent('order-updated', { code: orderCode, status: 'DaDatHang', paymentMethod: methodCode, paymentMethodDisplay: methodDisplay })
+      }
+    } catch (e) {}
+    showQr.value = false
+    try {
+      await router.push({ name: 'profile', query: { tab: 'orders' } })
+    } catch (err) {
+      console.warn('Navigation to orders history failed:', err)
     }
   } catch (e) {
     console.error(e)
-    try { ElNotification({ title: 'Error', message: 'Có lỗi khi lưu đơn hàng', type: 'error' }) } catch (_) { alert('Có lỗi khi lưu đơn hàng') }
+    ElNotification({ title: 'Error', message: e?.message || 'Có lỗi khi lưu đơn hàng', type: 'error' })
+  } finally {
+    savingOrder.value = false
   }
 }
 
@@ -391,6 +404,7 @@ async function applyDiscount() {
 .summary-actions { display:flex; gap:10px; margin-top:16px }
 .btn-checkout { flex:1; padding:10px 12px; background:#ff8a66; color:#fff; border:none; border-radius:8px; cursor:pointer; box-shadow:0 6px 18px rgba(255,138,102,0.18) }
 .btn-checkout:hover { background:#ff704d }
+.btn-checkout[disabled] { opacity:0.6; cursor:not-allowed }
 .btn-clear { flex:1; padding:10px 12px; background:#fff; border:1px solid #f2bdb3; color:#c0392b; border-radius:8px; cursor:pointer }
 
 @media (max-width: 900px) {
