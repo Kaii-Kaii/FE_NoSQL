@@ -1,11 +1,9 @@
 <template>
-    <section>
-        <div>
-            <div class="h-16 w-full bg-gray-700 text-white flex items-center px-4">
-                <div class="text-lg font-bold uppercase">Trang quản lý</div>
-            </div>  
+    <section class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="title">Trang quản lý</div>
         </div>
-        <div class="h-screen w-60 bg-gray-800 text-gray-500 flex flex-col p-4 gap-3">
+        <div class="sidebar-body">
             <router-link to="/admin/order" class=" rounded px-4 py-2 flex gap-3 items-center cursor-pointer" :class="{'text-white bg-gray-700': isActive('dashboard')}">
                 <i class="fa-solid fa-clipboard-list"></i>
                 <span>Quản lý đơn hàng</span>
@@ -53,3 +51,77 @@ const onLogout = async () => {
     await store.dispatch('user/logout');
 };
 </script>
+
+<style scoped>
+.admin-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 240px;
+    background: #1f2937;
+    color: #9ca3af;
+}
+
+.sidebar-header {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: #111827;
+    color: #f9fafb;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-header .title {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.sidebar-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.sidebar-body :deep(.router-link-active) {
+    background: #374151;
+    color: #f9fafb;
+}
+
+.sidebar-body a {
+    color: inherit;
+    border-radius: 8px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-body a:hover {
+    background: #2d3748;
+    color: #f9fafb;
+}
+
+.sidebar-body button {
+    color: inherit;
+    border-radius: 8px;
+}
+
+@media (max-width: 1024px) {
+    .admin-sidebar {
+        position: relative;
+        height: auto;
+        width: 100%;
+        flex-direction: row;
+    }
+
+    .sidebar-body {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+}
+</style>
