@@ -35,6 +35,10 @@ request.interceptors.request.use(
     } catch (err) {
       console.warn('Unable to parse stored user for role header', err)
     }
+
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
     return config
   },
   error => Promise.reject(error)
