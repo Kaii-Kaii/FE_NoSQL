@@ -21,10 +21,10 @@
                 </el-button>
             </div>
 
+            <div class="table-area">
             <el-table
                 v-loading="loading"
                 :data="books"
-                height="520"
                 stripe
                 size="large"
                 :row-key="row => row.code"
@@ -54,17 +54,20 @@
                 </el-table-column>
             </el-table>
 
-            <el-pagination
-                class="pagination"
-                background
-                layout="prev, pager, next, sizes, total"
-                :current-page="currentPage"
-                :page-sizes="[5, 10, 20, 50]"
-                :page-size="perPage"
-                :total="total"
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-            />
+            <div class="pagination-wrap">
+                <el-pagination
+                    class="pagination"
+                    background
+                    layout="prev, pager, next, sizes, total"
+                    :current-page="currentPage"
+                    :page-sizes="[5, 10, 20, 50]"
+                    :page-size="perPage"
+                    :total="total"
+                    @size-change="handleSizeChange"
+                    @current-change="handleCurrentChange"
+                />
+            </div>
+            </div>
         </el-card>
 
         <DialogCreateOrEditBook ref="dialogCreateOrEditBook" @on-success="getList" />
@@ -287,6 +290,8 @@ defineExpose({ getList })
     display: flex;
     flex-direction: column;
     gap: 16px;
+    /* Make the admin book view fit the viewport so the page doesn't scroll; content-card will scroll internally */
+    min-height: calc(100vh - 80px);
 }
 
 .header {
@@ -304,6 +309,9 @@ defineExpose({ getList })
 
 .content-card {
     padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
 }
 
 .table-toolbar {
@@ -320,6 +328,31 @@ defineExpose({ getList })
 .pagination {
     margin-top: 16px;
     justify-content: flex-end;
+}
+
+.table-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* allow the table and pagination to scroll inside the card */
+    overflow: auto;
+    flex: 1 1 auto;
+}
+
+.pagination-wrap {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+    background: transparent;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #fff;
+    padding-top: 6px;
+    padding-bottom: 6px;
 }
 
 .detail-content {
