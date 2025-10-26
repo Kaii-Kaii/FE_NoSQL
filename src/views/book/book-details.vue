@@ -336,11 +336,11 @@
         <!-- Related Books Section -->
         <div v-if="book && book.MADANHMUC" class="mt-5">
           <CategoryBooks 
-            :categoryId="book.MADANHMUC"
-            :title="`Sách gợi ý:`"
-            :limit="6"
-            :viewMoreLink="`/home/books?category=${book.MADANHMUC}`"
-          />
+              :categoryId="book.MADANHMUC"
+              :title="`Sách gợi ý:`"
+              :limit="5"
+              :viewMoreLink="`/home/books?category=${book.MADANHMUC}`"
+            />
         </div>
       </div>
 
@@ -570,7 +570,7 @@ const handleAddToCart = () => {
       })
     } catch (e) {
       // Fallback nếu ElNotification không hoạt động
-      alert(`✅ Đã thêm ${quantity.value} quyển "${book.value.TENSACH}" vào giỏ hàng!`)
+      alert(` Đã thêm ${quantity.value} quyển "${book.value.TENSACH}" vào giỏ hàng!`)
     }
   } catch (error) {
     console.error('Error adding to cart:', error)
@@ -624,7 +624,7 @@ const handleBuyNow = () => {
         duration: 3000
       })
     } catch (e) {
-      alert(error?.message ? `Có lỗi khi mua hàng: ${error.message}` : '❌ Có lỗi khi mua hàng')
+      alert(error?.message ? `Có lỗi khi mua hàng: ${error.message}` : ' Có lỗi khi mua hàng')
     }
   }
 }

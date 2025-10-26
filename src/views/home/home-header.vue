@@ -1,97 +1,5 @@
 <template>
-      <!--==============================
-    	Mobile Menu
-  	============================== -->
-  <div class="vs-menu-wrapper">
-    <div class="vs-menu-area text-center">
-      <div class="mobile-logo">
-        <router-link to="/home"><img src="@/assets/img/logo.svg" alt="ebukz" class="logo"></router-link>
-        <button class="vs-menu-toggle"><i class="fal fa-times"></i></button>
-      </div>
-      <div class="vs-mobile-menu">
-        <ul>
-          <li class="menu-item-has-children">
-            <router-link to="/home">Home</router-link>
-            <ul class="sub-menu">
-              <li><router-link to="/home">Home 1</router-link></li>
-              <li><router-link to="/home">Home 2</router-link></li>
-              <li><router-link to="/home">Home 3</router-link></li>
-            </ul>
-          </li>
-          <li class="menu-item-has-children">
-            <a href="shop.html">Shop</a>
-            <ul class="sub-menu">
-              <li><a href="shop.html">Shop</a></li>
-              <li><a href="shop-sidebar.html">Shop Sidebar</a></li>
-              <li><a href="shop-details.html">Shop Details</a></li>
-            </ul>
-          </li>
-          <li class="menu-item-has-children">
-            <a href="about.html">Vendor</a>
-            <ul class="sub-menu">
-              <li><a href="vendor.html">Vendor</a></li>
-              <li><a href="vendor-details.html">Vendor Details</a></li>
-            </ul>
-          </li>
-          <li class="menu-item-has-children mega-menu-wrap">
-            <a href="#">Pages</a>
-            <ul class="mega-menu">
-              <li><a href="shop.html">Page List 1</a>
-                <ul>
-                  <li><router-link to="/home">Home 1</router-link></li>
-                  <li><a href="index-2.html">Home 2</a></li>
-                  <li><a href="index-3.html">Home 3</a></li>
-                  <li><a href="about.html">About</a></li>
-                  <li><a href="contact.html">Contact</a></li>
-                </ul>
-              </li>
-              <li><a href="#">Page List 2</a>
-                <ul>
-                  <li><a href="blog.html">Blog</a></li>
-                  <li><a href="blog-sidebar.html">Blog Sidebar</a></li>
-                  <li><a href="blog-sidebar-2.html">Blog Sidebar 2</a></li>
-                  <li><a href="Blog-Standard.html">Blog Standard</a></li>
-                  <li><a href="blog-details.html">Blog Details</a></li>
-                </ul>
-              </li>
-              <li><a href="#">Page List 3</a>
-                <ul>
-                  <li><a href="cart.html">Cart</a></li>
-                  <li><a href="shop.html">Shop</a></li>
-                  <li><a href="shop-sidebar.html">Shop Sidebar</a></li>
-                  <li><a href="shop-details.html">Shop Details</a></li>
-                  <li><a href="404.html">Error Page</a></li>
-                </ul>
-              </li>
-              <li><a href="#">Page List 4</a>
-                <ul>
-                  <li><a href="wishlist.html">wishlist</a></li>
-                  <li><a href="checkout.html">checkout</a></li>
-                  <li><a href="author.html">All Authors</a></li>
-                  <li><a href="author-details.html">Author Details</a></li>
-                  <li><a href="vendor.html">Vendor</a></li>
-                  <li><a href="vendor-details.html">Vendor Details</a></li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-          <li class="menu-item-has-children">
-            <a href="blog.html">Blog</a>
-            <ul class="sub-menu">
-              <li><a href="blog.html">Blog</a></li>
-              <li><a href="blog-sidebar.html">Blog Sidebar</a></li>
-              <li><a href="blog-sidebar-2.html">Blog Sidebar 2</a></li>
-              <li><a href="Blog-Standard.html">Blog Standard</a></li>
-              <li><a href="blog-details.html">Blog Details</a></li>
-            </ul>
-          </li>
-          <li>
-            <a href="contact.html">Contact</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </div>
+    
   <!--==============================
     Popup Search Box
     ============================== -->
@@ -106,47 +14,6 @@
         Header Area
     ==============================-->
   <header class="vs-header header-layout1 style2">
-    <div class="header-top">
-      <div class="container">
-        <div class="row justify-content-md-between justify-content-center align-items-center">
-          <div class="col-auto">
-            <div class="header-links d-md-inline d-none">
-              <ul>
-                <li><i class="fa-solid fa-truck-fast"></i>Fastest Delivery In Your City</li>
-              </ul>
-            </div>
-          </div>
-          <div class="col-auto">
-            <div class="header-right">
-              <div class="dropdown">
-                <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown"
-                  aria-expanded="false"><span class="globe-icon"><i class="fal fa-globe"></i></span>English</a>
-                <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-                  <li><a class="dropdown-item" href="#">Arabic</a></li>
-                  <li><a class="dropdown-item" href="#">German</a></li>
-                  <li><a class="dropdown-item" href="#">French</a></li>
-                  <li><a class="dropdown-item" href="#">Italian</a></li>
-                  <li><a class="dropdown-item" href="#">Slobac</a></li>
-                  <li><a class="dropdown-item" href="#">Russian</a></li>
-                  <li><a class="dropdown-item" href="#">Spanish</a></li>
-                </ul>
-              </div>
-              <div class="header-social">
-                <a href="#"><i class="fab fa-facebook-f"></i></a>
-                <a href="#"><i class="fa-brands fa-x-twitter"></i></a>
-                <a href="#"><i class="fab fa-instagram"></i></a>
-                <a href="#"><i class="fab fa-youtube"></i></a>
-              </div>
-              <div class="user-login">
-                <router-link to="/home/profile" class="vs-icon" title="Thông tin cá nhân">
-                  <i class="fa-solid fa-user"></i>
-                </router-link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     <div class="header-middle">
       <div class="container">
         <div class="row justify-content-sm-between justify-content-center align-items-center gx-sm-0">
@@ -180,7 +47,11 @@
                 <router-link to="/wishlist" class="vs-icon wishlist"><i class="fal fa-heart"></i></router-link>
                 <div class="header-info">
                   <div class="header-info_icon">
-                    <i class="fas fa-phone"></i>
+                    <div class="user-login">
+                      <router-link to="/home/profile" class="vs-icon" title="Thông tin cá nhân">
+                        <i class="fa-solid fa-user"></i>
+                      </router-link>
+                    </div>
                   </div>
                     <div class="header-cart" @mouseenter="showPreview" @mouseleave="hidePreview">
                   <a href="#" class="vs-icon has-badge" @click.prevent="goToCart"><i class="fa-solid fa-basket-shopping"></i><span

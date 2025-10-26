@@ -23,7 +23,6 @@
                   class="underline">Bookstore</span> in the world</h1>
               <p class="hero-text wow animate__fadeInUp" data-wow-delay="0.75s">We deliver books all over the world
                 10,000+ books in stock.</p>
-              <a class="vs-btn wow animate__flipInX" data-wow-delay="0.95s" href="shop.html">Explore More</a>
             </div>
           </div>
           <div class="col-lg-6">
@@ -78,59 +77,7 @@
     </div>
   </section> -->
   <!-- Trending Product End -->
-  <!-- Offer section Start -->
-  <div class="offer-layout1 space-bottom">
-    <div class="container">
-      <div class="row g-4">
-        <div class="col-xl-6 col-lg-6">
-          <div class="offer-style1 wow animate__fadeInLeft" data-wow-delay="0.30s"
-            data-bg-src="@/assets/img/bg/offer-bg1.jpg">
-            <div class="offer-img">
-              <img src="@/assets/img/offer/offer-img1.png" alt="offer image">
-            </div>
-            <div class="offer-content">
-              <div class="star-rating">
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-              </div>
-              <h2 class="offer-title">E Emeher Mme</h2>
-              <p class="offer-price">Only From <span>$85.00</span></p>
-              <a class="vs-btn" href="shop.html">Shop Now</a>
-            </div>
-            <span class="shape-mockup element1 z-index1  d-xxl-block d-none" data-wow-delay="0.80s"
-              style="right: 0px; bottom: -5px;"><img src="@/assets/img/shapes/offer-shape1.png"
-                alt="offer shape"></span>
-          </div>
-        </div>
-        <div class="col-xl-6 col-lg-6">
-          <div class="offer-style1 white-style wow animate__fadeInRight" data-wow-delay="0.30s"
-            data-bg-src="@/assets/img/bg/offer-bg2.jpg">
-            <div class="offer-img">
-              <img src="@/assets/img/offer/offer-img1.png" alt="offer image">
-            </div>
-            <div class="offer-content">
-              <div class="star-rating">
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-              </div>
-              <h2 class="offer-title">Viving Moneme</h2>
-              <p class="offer-price">Only From <span>$85.00</span></p>
-              <a class="vs-btn" href="shop.html">Shop Now</a>
-            </div>
-            <span class="shape-mockup element1 z-index1  d-xxl-block d-none" data-wow-delay="0.80s"
-              style="right: 0px; bottom: -5px;"><img src="@/assets/img/shapes/offer-shape2.png"
-                alt="offer shape"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+>
   <!-- Offer section End -->
   <!-- Top Categories Start -->
   <section class="categories-layout1 space" data-bg-src="@/assets/img/bg/categorie-bg1.jpg">
@@ -139,34 +86,67 @@
         <h2 class="sec-title title-anime__title">Top 5 Books</h2>
       </div>
       
-      <!-- Top 5 Books - 1 hàng -->
-      <div class="row g-4 mb-50">
+      <!-- Top 5 Books - Modern Grid -->
+      <div class="top-books-grid">
         <div 
-          v-for="book in topBooks" 
-          :key="book._id || book.id" 
-          class="col-lg-2-4"
-          style="width: calc(20% - 12px);"
+          v-for="(book, index) in topBooks" 
+          :key="book._id || book.id"
+          class="top-book-card"
+          :style="{ animationDelay: `${index * 0.1}s` }"
         >
-          <div class="product-style1">
-            <div class="product-img">
+          <div class="top-book-card-inner">
+            <!-- Book Image -->
+            <div class="top-book-image-wrapper" @click.prevent="viewTopBook(book)">
               <img 
                 :src="book.coverUrl || book.image || '@/assets/img/product/default.jpg'" 
                 :alt="book.name"
-                style="width: 100%; height: 220px; object-fit: cover;"
+                class="top-book-image"
               >
-              <div class="product-btns">
-                <button class="icon-btn wishlist" @click="toggleWishlistTopBook(book)" :class="{ active: isWishedTopBook(book._id || book.id) }">
+              <!-- Quick Actions Overlay -->
+              <div class="top-quick-actions">
+                <button 
+                  class="top-action-btn top-wishlist-btn" 
+                  @click.stop="toggleWishlistTopBook(book)" 
+                  :class="{ active: isWishedTopBook(book._id || book.id) }" 
+                  :title="isWishedTopBook(book._id || book.id) ? 'Bỏ yêu thích' : 'Thêm yêu thích'"
+                >
                   <i :class="isWishedTopBook(book._id || book.id) ? 'fas fa-heart' : 'far fa-heart'"></i>
                 </button>
-                <button class="icon-btn cart" @click="handleAddToCartTopBook(book)">
+                <button 
+                  class="top-action-btn top-cart-btn" 
+                  @click.stop="handleAddToCartTopBook(book)"
+                  title="Thêm vào giỏ"
+                >
                   <i class="fa-solid fa-basket-shopping"></i>
                 </button>
               </div>
             </div>
-            <div class="product-content text-center mt-2">
-              <h5 class="product-title" style="font-size: 14px; min-height: 40px;">{{ book.name }}</h5>
-              <p class="price fw-bold text-danger" style="margin: 8px 0;">{{ formatPrice(book.price) }}</p>
-              <p class="desc small text-muted" style="font-size: 12px; margin: 0;">{{ book.author }}</p>
+            
+            <!-- Book Info -->
+            <div class="top-book-info">
+              <!-- Rating & Price Row -->
+              <div class="top-info-row">
+                <div class="top-book-rating">
+                  <i class="fas fa-star"></i>
+                  <span>4.5</span>
+                </div>
+                <div class="top-book-prices">
+                  <span class="top-price-current">{{ formatPrice(book.price) }}</span>
+                </div>
+              </div>
+              
+              <!-- Author -->
+              <div class="top-book-author">
+                <i class="fas fa-user-edit"></i>
+                {{ book.author || 'Unknown' }}
+              </div>
+              
+              <!-- Title -->
+              <h3 class="top-book-title">
+                <a href="#" @click.prevent="viewTopBook(book)" :title="book.name">
+                  {{ book.name }}
+                </a>
+              </h3>
             </div>
           </div>
         </div>
@@ -185,10 +165,6 @@
 
       <!-- book-list -->
       <BookList :selectedCategory="selectedCategoryId" />
-
-      <div class="text-center">
-        <a class="vs-btn wow animate__flipInX" data-wow-delay="0.40s" href="shop.html">View More</a>
-      </div>
     </div>
   </section>
   <!-- Top Categories End -->
@@ -239,22 +215,6 @@
       </div>
     </div>
   </section> -->
-  <!-- Best selling End -->
-  <!-- Sách Thiếu Nhi Start -->
-  <CategoryBooks 
-    :categoryId="3" 
-    title="Bán Chạy Sách Thiếu Nhi"
-    :limit="6"
-  />
-  <!-- Sách Thiếu Nhi End -->
-  <!-- Sách Lịch Sử Việt Nam Start -->
-   <CategoryBooks 
-    :categoryId="5" 
-    title="Bán Chạy Sách Lịch Sử Việt Nam"
-    :limit="6"
-  />
-  <!-- Sách Lịch Sử Việt Nam End -->
-  <!-- Book Of The Month End -->
   
   <!-- Book Of The Month End -->
   <!-- Testimonial Area  -->
@@ -632,6 +592,19 @@ function toggleWishlistTopBook(book) {
   } catch (e) {}
 }
 
+// Điều hướng tới trang detail cho top book
+function viewTopBook(book) {
+  // support multiple possible id fields returned by different APIs
+  const rawId = book.MASACH || book.code || book._id || book.id
+  const bookCode = rawId != null ? String(rawId) : null
+  if (!bookCode) {
+    console.warn('Không tìm thấy mã sách (top book) để xem chi tiết:', book)
+    try { ElNotification({ title: 'Thông báo', message: 'Không tìm thấy thông tin chi tiết cho sách này.', type: 'warning' }) } catch (e) {}
+    return
+  }
+  router.push(`/home/books/${bookCode}`)
+}
+
 // Thêm top book vào giỏ
 function handleAddToCartTopBook(book) {
   const rawId = book.code || book.MASACH || book._id || book.id
@@ -849,5 +822,270 @@ function formatPrice(price) {
 .preview-actions { display:flex; justify-content:flex-end; margin-top: 8px; }
 .btn-view { background:#007bff; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
 .empty { color:#666; padding:8px 0; text-align:center; }
+
+/* Top 5 Books Modern Grid Styles */
+.top-books-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+  margin-bottom: 50px;
+}
+
+@media (max-width: 1200px) {
+  .top-books-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 992px) {
+  .top-books-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .top-books-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-books-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+/* Top Book Card */
+.top-book-card {
+  animation: fadeInUp 0.6s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.top-book-card-inner {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-book-card-inner:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Top Book Image */
+.top-book-image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 140%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  cursor: pointer;
+}
+
+.top-book-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.top-book-card-inner:hover .top-book-image {
+  transform: scale(1.08);
+}
+
+/* Top Quick Actions Overlay */
+.top-quick-actions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 3;
+}
+
+.top-book-card-inner:hover .top-quick-actions {
+  opacity: 1;
+}
+
+.top-action-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: #2c3e50;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.top-action-btn:hover {
+  transform: scale(1.15);
+}
+
+.top-wishlist-btn:hover {
+  background-color: #d17057;
+  color: white;
+}
+
+.top-wishlist-btn.active {
+  background-color: #d17057;
+  color: white;
+  animation: heartBeat 0.5s;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.25); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(1.2); }
+}
+
+.top-cart-btn:hover {
+  background-color: #27ae60;
+  color: white;
+}
+
+/* Top Book Info */
+.top-book-info {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.top-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Top Rating */
+.top-book-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ffc107;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.top-book-rating i {
+  font-size: 14px;
+}
+
+.top-book-rating span {
+  color: #2c3e50;
+}
+
+/* Top Prices */
+.top-book-prices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.top-price-current {
+  font-size: 16px;
+  font-weight: 700;
+  color: #d17057;
+  line-height: 1;
+}
+
+/* Top Author */
+.top-book-author {
+  font-size: 12px;
+  color: #7f8c8d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.top-book-author i {
+  font-size: 11px;
+  color: #d17057;
+}
+
+/* Top Title */
+.top-book-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.top-book-title a {
+  color: #2c3e50;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.3s ease;
+}
+
+.top-book-title a:hover {
+  color: #d17057;
+}
+
+/* Responsive Adjustments for Top Books */
+@media (max-width: 768px) {
+  .top-book-info {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .top-price-current {
+    font-size: 14px;
+  }
+  
+  .top-book-title {
+    font-size: 13px;
+  }
+  
+  .top-book-author {
+    font-size: 11px;
+  }
+  
+  .top-action-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+}
 </style>
 

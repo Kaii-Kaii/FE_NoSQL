@@ -16,6 +16,27 @@ export function getTopBooks(limit = 5) {
   })
 }
 
+// Lấy sách theo mã danh mục (ví dụ: /api/Books?categoryCode=SGK)
+export function getBooksByCategory(categoryCode, page = 1, pageSize = 20) {
+  const params = {}
+  if (categoryCode !== undefined && categoryCode !== null) params.categoryCode = categoryCode
+  if (page !== undefined) params.page = page
+  if (pageSize !== undefined) params.pageSize = pageSize
+  return request({
+    url: `/Books`,
+    method: 'get',
+    params
+  })
+}
+
+// Lấy top categories (analytics) từ endpoint /Books/top-categories?limit=
+export function getTopCategories(limit = 5) {
+  return request({
+    url: `/Books/top-categories?limit=${encodeURIComponent(limit)}`,
+    method: 'get'
+  })
+}
+
 export function getBookByCode(code) {
   return request({
     url: `/Books/${encodeURIComponent(code)}`,
