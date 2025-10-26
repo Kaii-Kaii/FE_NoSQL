@@ -49,12 +49,12 @@ const routes = [
   {
     path: "/login",
     name: "login",
-    component: () => import("@/views/auth/login.vue"),
+    component: () => import("@/views/auth/auth-switch.vue"),
   },
   {
     path: "/register",
     name: "register",
-    component: () => import("@/views/auth/register.vue"),
+    component: () => import("@/views/auth/auth-switch.vue"),
   },
   {
     path: "/reset-password",
