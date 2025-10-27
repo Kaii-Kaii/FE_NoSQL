@@ -56,12 +56,14 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router'
 import store from '@/store'
 import DialogForgotPassword from './dialog-forgot-password.vue';
 import { signInWithGooglePopup } from '@/utils/firebase'
 import { googleLogin } from '@/api/googleAuth'
 import { ElMessage } from 'element-plus'
 
+const router = useRouter()
 const form = ref({
     username: '',
     password: ''
@@ -124,12 +126,11 @@ const handleGoogleSignIn = async () => {
         ElMessage.success('Đăng nhập bằng Google thành công')
 
         // redirect same as store login
-        const isAdmin = (resData?.role || '').toLowerCase() === 'admin'
-        const targetRoute = isAdmin ? { name: 'admin-order' } : { name: 'home' }
-        // small delay to let message show
+        const roleNormalized = (resData?.role || '').toLowerCase()
+        const targetRoute = roleNormalized === 'admin' ? { name: 'admin-order' } : { name: 'home' }
+
         setTimeout(() => {
-            // use router via store actions used elsewhere; using location replace to avoid importing router here
-            window.location.href = '#/' + (targetRoute.name === 'admin-order' ? 'admin/orders' : '')
+            router.replace(targetRoute).catch(() => {})
         }, 300)
     } catch (error) {
         console.error('Google sign-in failed', error)

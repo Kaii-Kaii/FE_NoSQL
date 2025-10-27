@@ -118,6 +118,7 @@
                       class="form-control" 
                       v-model="formData.email"
                       placeholder="Nhập email"
+                      readonly
                     >
                   </div>
                   <div class="col-md-6 form-group-animated">
