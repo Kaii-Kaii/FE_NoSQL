@@ -1,5 +1,5 @@
 <template>
-  <div class="row g-4 mb-40 filter-menu-active">
+  <div class="row g-4 mb-20 filter-menu-active">
     <!-- Debug info -->
     <div v-if="categories.length === 0" class="col-12 text-center">
       <p class="text-muted">Đang tải danh mục...</p>
@@ -14,11 +14,31 @@
         data-wow-delay="0.20s"
       >
         <img 
-          src="/src/assets/img/categoris/catigori-1-1.png" 
+          src="/src/assets/img/categoris/catigori-1-6.png" 
           alt="All categories"
           @error="handleImageError"
         >
         <h4 class="categorie-title">Tất cả</h4>
+      </div>
+    </div>
+    <!-- Top categories (analytics) - hiển thị 5 loại sau ô "Tất cả" -->
+    <div 
+      v-for="(t, idx) in topCategories" 
+      :key="`top-${t.categoryCode || t.categoryName || t.category}-${idx}`" 
+      class="col-xl-2 col-lg-3 col-md-4 col-6"
+    >
+      <div 
+        class="categorie-style1 wow animate__fadeInUp" 
+        data-wow-delay="0.22s"
+        @click="selectTopCategory(t)"
+        style="cursor: pointer;"
+      >
+        <img 
+          :src="getTopCategoryImage(t, idx)" 
+          :alt="t.categoryName || t.category"
+          @error="handleImageError"
+        >
+        <h4 class="categorie-title">{{ t.categoryName || t.category }}</h4>
       </div>
     </div>
     
@@ -47,9 +67,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getCategory } from '@/api/category'
+import { getTopCategories } from '@/api/book'
 
 const categories = ref([])
 const selectedCategory = ref(null)
+const topCategories = ref([])
 
 // Lấy danh sách categories từ API
 const fetchCategories = async () => {
@@ -77,6 +99,22 @@ const fetchCategories = async () => {
     console.error('Error fetching categories:', error)
     categories.value = []
   }
+
+  // Lấy top categories (analytics) — hiển thị 5 loại sau ô "Tất cả"
+  try {
+    const top = await getTopCategories(5)
+    // Expect: [{ categoryCode, categoryName, totalSold }, ...]
+    if (Array.isArray(top)) {
+      topCategories.value = top.slice(0, 5)
+    } else if (top?.data && Array.isArray(top.data)) {
+      topCategories.value = top.data.slice(0, 5)
+    } else {
+      topCategories.value = []
+    }
+  } catch (err) {
+    console.warn('Unable to load top categories:', err)
+    topCategories.value = []
+  }
 }
 
 // Lấy hình ảnh category - sử dụng đường dẫn tương đối
@@ -99,6 +137,33 @@ const getCategoryImage = (category) => {
   return defaultImages[category.MADANHMUC] || '/src/assets/img/categoris/catigori-1-1.png'
 }
 
+// Lấy ảnh cho top category (nếu backend chỉ trả tên)
+const getTopCategoryImage = (top, idx) => {
+  // Thử tìm category tương ứng trong danh sách đã tải để dùng ảnh cụ thể
+  try {
+    const topName = (top.categoryName || top.category || '').toString().trim().toLowerCase()
+    const match = categories.value.find(c => {
+      const a = (c.TENDANHMUC || '').toString().trim().toLowerCase()
+      return a === topName
+    })
+    if (match) return getCategoryImage(match)
+  } catch (e) {
+    // ignore
+  }
+
+  // Fallback: chọn ảnh mặc định theo index (1..6)
+  const fallbackIndex = (idx % 6) + 1
+  const fallback = {
+    1: '/src/assets/img/categoris/catigori-1-1.png',
+    2: '/src/assets/img/categoris/catigori-1-2.png',
+    3: '/src/assets/img/categoris/catigori-1-3.png',
+    4: '/src/assets/img/categoris/catigori-1-4.png',
+    5: '/src/assets/img/categoris/catigori-1-5.png',
+    6: '/src/assets/img/categoris/catigori-1-6.png'
+  }
+  return fallback[fallbackIndex] || '/src/assets/img/categoris/catigori-1-1.png'
+}
+
 // Xử lý lỗi ảnh
 const handleImageError = (e) => {
   console.log('Image error:', e.target.src)
@@ -112,6 +177,40 @@ const selectCategory = (category) => {
   
   // Emit event với MADANHMUC để component cha có thể lọc sách
   emit('category-selected', category.MADANHMUC)
+}
+
+// Xử lý khi click vào top-category (analytics)
+const selectTopCategory = (top) => {
+  // Nếu backend trả categoryCode, dùng mã đó trực tiếp
+  if (top?.categoryCode) {
+    selectedCategory.value = top.categoryCode
+    emit('category-selected', top.categoryCode)
+    return
+  }
+
+  // Fallback: cố gắng map theo tên giống trước
+  try {
+    const name = (top.categoryName || top.category || '').toString().trim().toLowerCase()
+    // exact match first
+    let match = categories.value.find(c => (c.TENDANHMUC || '').toString().trim().toLowerCase() === name)
+    if (!match) {
+      match = categories.value.find(c => {
+        const a = (c.TENDANHMUC || '').toString().trim().toLowerCase()
+        return a.includes(name) || name.includes(a)
+      })
+    }
+    if (match) {
+      selectedCategory.value = match.MADANHMUC
+      emit('category-selected', match.MADANHMUC)
+      return
+    }
+  } catch (e) {
+    console.warn('Error matching top category to categories list', e)
+  }
+
+  // Nếu không map được, emit tên để parent xử lý tùy ý
+  selectedCategory.value = top.categoryName || top.category
+  emit('category-selected', top.categoryName || top.category)
 }
 
 // Xử lý khi click "Tất cả" - hiển thị tất cả sách

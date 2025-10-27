@@ -27,7 +27,8 @@ const routes = [
       {
         path: "books",
         name: "books",
-        component: () => import("@/views/book/book-list.vue"),
+        // render a page that includes Category + BookList so /home/books shows categories
+        component: () => import("@/views/book/books-page.vue"),
       },
       {
         path: "books/:code",

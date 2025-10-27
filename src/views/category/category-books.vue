@@ -1,60 +1,90 @@
 <template>
-  <section class="romance-layout1 space-top">
-    <div class="container space-bottom position-relative">
-      <div class="title-area2 animation-style1 title-anime">
-        <h2 class="sec-title title-anime__title">{{ title }}</h2>
-        <a class="vs-btn wow animate__flipInX" data-wow-delay="0.70s" :href="viewMoreLink">View More</a>
+  <section class="suggestions-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">{{ title }}</h2>
+        <a :href="viewMoreLink" class="view-more-link">
+          Xem thêm <i class="fas fa-arrow-right"></i>
+        </a>
       </div>
-      <div class="row g-4">
+      
+      <div class="books-grid">
         <div 
           v-for="(book, index) in displayBooks" 
           :key="book.MASACH"
-          class="col-xl-2 col-md-4 col-sm-6"
+          class="book-card"
+          :style="{ animationDelay: `${index * 0.1}s` }"
         >
-          <div 
-            class="product-style1 wow animate__fadeInUp" 
-            :data-wow-delay="`0.${30 + index * 10}s`"
-          >
-            <div class="product-img">
+          <div class="book-card-inner">
+            <!-- Book Image -->
+            <div class="book-image-wrapper" @click.prevent="viewDetail(book)">
               <img 
                 :src="book.URLSACH || book.ANHSACH" 
                 :alt="book.TENSACH"
                 @error="handleImageError"
+                class="book-image"
               >
-              <div class="product-btns">
-                <a href="#" class="icon-btn wishlist" @click.prevent="toggleWishlist(book)" :class="{ active: isWished(book.MASACH) }" :title="isWished(book.MASACH) ? 'Bỏ yêu thích' : 'Thêm yêu thích'">
+              <!-- Badges -->
+              <div class="book-badges" v-if="book.ISHOT || book.DISCOUNT">
+                <span v-if="book.ISHOT" class="badge badge-hot">
+                  <i class="fas fa-fire"></i> Hot
+                </span>
+                <span v-if="book.DISCOUNT" class="badge badge-discount">
+                  -{{ book.DISCOUNT }}%
+                </span>
+              </div>
+              <!-- Quick Actions Overlay -->
+              <div class="quick-actions">
+                <button 
+                  class="action-btn wishlist-btn" 
+                  @click.stop="toggleWishlist(book)" 
+                  :class="{ active: isWished(book.MASACH) }" 
+                  :title="isWished(book.MASACH) ? 'Bỏ yêu thích' : 'Thêm yêu thích'"
+                >
                   <i :class="isWished(book.MASACH) ? 'fas fa-heart' : 'far fa-heart'"></i>
-                </a>
-                <a href="#" class="icon-btn cart" @click.prevent="handleAddToCart(book)">
+                </button>
+                <button 
+                  class="action-btn cart-btn" 
+                  @click.stop="handleAddToCart(book)"
+                  title="Thêm vào giỏ"
+                >
                   <i class="fa-solid fa-basket-shopping"></i>
-                </a>
+                </button>
               </div>
-              <ul class="post-box" v-if="book.ISHOT || book.DISCOUNT">
-                <li v-if="book.ISHOT">Hot</li>
-                <li v-if="book.DISCOUNT">-{{ book.DISCOUNT }}%</li>
-              </ul>
             </div>
-            <div class="product-content">
-              <div class="product-rating">
-                <span class="star"><i class="fas fa-star"></i> (4.5)</span>
-                <ul class="price-list">
-                  <li v-if="book.GIAGOC && book.GIAGOC > book.GIATIEN">
-                    <del>{{ formatPrice(book.GIAGOC) }}</del>
-                  </li>
-                  <li>{{ formatPrice(book.GIATIEN) }}</li>
-                </ul>
+            
+            <!-- Book Info -->
+            <div class="book-info">
+              <!-- Rating & Price Row -->
+              <div class="info-row">
+                <div class="book-rating">
+                  <i class="fas fa-star"></i>
+                  <span>4.5</span>
+                </div>
+                <div class="book-prices">
+                  <span class="price-current">{{ formatPrice(book.GIATIEN) }}</span>
+                  <span class="price-original" v-if="book.GIAGOC && book.GIAGOC > book.GIATIEN">
+                    {{ formatPrice(book.GIAGOC) }}
+                  </span>
+                </div>
               </div>
-              <span class="product-author">
-                <strong>By:</strong> {{ book.TACGIA || 'Unknown' }}
-              </span>
-              <h2 class="product-title">
-                <a href="#" @click.prevent="viewDetail(book)">{{ book.TENSACH }}</a>
-              </h2>
+              
+              <!-- Author -->
+              <div class="book-author">
+                <i class="fas fa-user-edit"></i>
+                {{ book.TACGIA || 'Unknown' }}
+              </div>
+              
+              <!-- Title -->
+              <h3 class="book-title">
+                <a href="#" @click.prevent="viewDetail(book)" :title="book.TENSACH">
+                  {{ book.TENSACH }}
+                </a>
+              </h3>
             </div>
           </div>
         </div>
       </div>
-      <span class="border-line"></span>
     </div>
   </section>
 </template>
@@ -62,7 +92,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listBook } from '@/api/book'
+import { listBook, getBooksByCategory } from '@/api/book'
 import { addToCart } from '@/api/cart'
 import { toggleWishlist as toggleWishlistApi, getWishlistIds } from '@/api/wishlist'
 import { on as onEvent } from '@/utils/eventBus'
@@ -100,19 +130,43 @@ const displayBooks = computed(() => {
   return filtered.slice(0, props.limit)
 })
 
-// Fetch toàn bộ sách
+// Fetch sách (ưu tiên gọi server khi có categoryCode)
 const fetchBooks = async () => {
   try {
-    const response = await listBook({
-      page: 1,
-      per_page: 100, // Lấy nhiều để đủ data filter
-    })
-    
     let booksData = []
-    if (response?.data) {
-      booksData = Array.isArray(response.data) ? response.data : []
-    } else if (Array.isArray(response)) {
-      booksData = response
+
+    // If a categoryId is provided, try to fetch from server by categoryCode
+    if (props.categoryId) {
+      try {
+        const res = await getBooksByCategory(props.categoryId, 1, Math.max(props.limit || 5, 5))
+        // server may return { items: [...] } or { data: [...] } or an array
+        if (Array.isArray(res)) {
+          booksData = res
+        } else if (res?.items && Array.isArray(res.items)) {
+          booksData = res.items
+        } else if (res?.data && Array.isArray(res.data)) {
+          booksData = res.data
+        } else if (res?.data?.items && Array.isArray(res.data.items)) {
+          booksData = res.data.items
+        } else {
+          booksData = []
+        }
+      } catch (err) {
+        console.warn('getBooksByCategory failed, falling back to listBook:', err)
+        // fallback to listBook below
+      }
+    }
+
+    // If we don't have data yet, fetch the large list and filter client-side (fallback)
+    if (!booksData || booksData.length === 0) {
+      const response = await listBook({ page: 1, per_page: 100 })
+      if (response?.data && Array.isArray(response.data)) {
+        booksData = response.data
+      } else if (Array.isArray(response)) {
+        booksData = response
+      } else {
+        booksData = []
+      }
     }
 
     allBooks.value = booksData.map(book => {
@@ -135,7 +189,7 @@ const fetchBooks = async () => {
         TRANGTHAI: book.status || book.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng')
       }
     })
-    
+
     console.log(`Books for category ${props.categoryId}:`, displayBooks.value.length)
   } catch (error) {
     console.error('Error fetching books:', error)
@@ -229,11 +283,416 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Wishlist active (đã yêu thích) */
-.icon-btn.wishlist.active {
-  background-color: #ff6b35;
-  border-color: transparent;
-  color: #fff;
+/* Suggestions Section */
+.suggestions-section {
+  padding: 60px 0;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
 }
-.icon-btn.wishlist.active i { color: #fff; }
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Section Header */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 3px solid #e9ecef;
+}
+
+.section-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  position: relative;
+  padding-left: 20px;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 40px;
+  background: linear-gradient(180deg, #d17057 0%, #e89b87 100%);
+  border-radius: 3px;
+}
+
+.view-more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background-color: #d17057;
+  color: white;
+  text-decoration: none;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(209, 112, 87, 0.3);
+}
+
+.view-more-link:hover {
+  background-color: #b85d47;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(209, 112, 87, 0.4);
+  color: white;
+}
+
+.view-more-link i {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.view-more-link:hover i {
+  transform: translateX(4px);
+}
+
+/* Books Grid */
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 1200px) {
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .books-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Book Card */
+.book-card {
+  animation: fadeInUp 0.6s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.book-card-inner {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-card-inner:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Book Image */
+.book-image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 140%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  cursor: pointer;
+}
+
+.book-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.book-card-inner:hover .book-image {
+  transform: scale(1.08);
+}
+
+/* Book Badges */
+.book-badges {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.badge-hot {
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.95) 0%, rgba(238, 90, 36, 0.95) 100%);
+  color: white;
+}
+
+.badge-discount {
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.95) 0%, rgba(230, 126, 34, 0.95) 100%);
+  color: white;
+}
+
+/* Quick Actions Overlay */
+.quick-actions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 3;
+}
+
+.book-card-inner:hover .quick-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: #2c3e50;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn:hover {
+  transform: scale(1.15);
+}
+
+.wishlist-btn:hover {
+  background-color: #d17057;
+  color: white;
+}
+
+.wishlist-btn.active {
+  background-color: #d17057;
+  color: white;
+  animation: heartBeat 0.5s;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.25); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(1.2); }
+}
+
+.cart-btn:hover {
+  background-color: #27ae60;
+  color: white;
+}
+
+/* Book Info */
+.book-info {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Rating */
+.book-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ffc107;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.book-rating i {
+  font-size: 14px;
+}
+
+.book-rating span {
+  color: #2c3e50;
+}
+
+/* Prices */
+.book-prices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.price-current {
+  font-size: 16px;
+  font-weight: 700;
+  color: #d17057;
+  line-height: 1;
+}
+
+.price-original {
+  font-size: 12px;
+  color: #95a5a6;
+  text-decoration: line-through;
+  line-height: 1;
+}
+
+/* Author */
+.book-author {
+  font-size: 12px;
+  color: #7f8c8d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.book-author i {
+  font-size: 11px;
+  color: #d17057;
+}
+
+/* Title */
+.book-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.book-title a {
+  color: #2c3e50;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.3s ease;
+}
+
+.book-title a:hover {
+  color: #d17057;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .suggestions-section {
+    padding: 40px 0;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  
+  .section-title {
+    font-size: 24px;
+  }
+  
+  .section-title::before {
+    height: 30px;
+  }
+  
+  .view-more-link {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .book-info {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .price-current {
+    font-size: 14px;
+  }
+  
+  .book-title {
+    font-size: 13px;
+  }
+  
+  .book-author {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 20px;
+  }
+  
+  .book-badges {
+    top: 8px;
+    left: 8px;
+  }
+  
+  .badge {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  
+  .action-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+}
 </style>
