@@ -118,6 +118,7 @@
                       class="form-control" 
                       v-model="formData.email"
                       placeholder="Nhập email"
+                      readonly
                     >
                   </div>
                   <div class="col-md-6 form-group-animated">
@@ -552,14 +553,14 @@ const changePassword = async () => {
 
   changingPassword.value = true
   try {
-    const username = currentUser.value?.username
-    if (!username) {
-      throw new Error('Thiếu thông tin tài khoản')
+    const email = currentUser.value?.email
+    if (!email) {
+      throw new Error('Thiếu thông tin email tài khoản')
     }
 
     await changePasswordApi({
-      username,
-      oldPassword: passwordForm.value.currentPassword,
+      email,
+      currentPassword: passwordForm.value.currentPassword,
       newPassword: passwordForm.value.newPassword
     })
 

@@ -66,6 +66,15 @@ const actions = {
         try {
             const resData = await login(userInfo)
 
+            // If backend indicates account not verified, backend may respond with 4xx.
+            // Some backends return 200 with a status field; handle that here as well.
+            if (resData && (resData.status === 'ChuaXacMinh' || resData.account?.status === 'ChuaXacMinh')) {
+                // throw a controlled error so caller can handle (UI will show message)
+                const err = new Error('Tài khoản chưa xác minh. Vui lòng kiểm tra email.')
+                err.response = { data: { message: 'Tài khoản chưa xác minh' }, status: 401 }
+                throw err
+            }
+
             if (resData?.code) {
                 localStorage.setItem('user', JSON.stringify(resData))
                 localStorage.setItem('token', resData.code)
@@ -82,8 +91,14 @@ const actions = {
             // chờ ngắn để người dùng kịp thấy thông báo thành công
             await new Promise((resolve) => setTimeout(resolve, 300))
 
-            const isAdmin = (resData?.role || '').toLowerCase() === 'admin'
+            const roleNormalized = (resData?.role || '').toLowerCase()
+            const isAdmin = roleNormalized === 'admin'
+            const isCustomer = roleNormalized === 'khachhang'
             const targetRoute = isAdmin ? { name: 'admin-order' } : { name: 'home' }
+
+            if (!isAdmin && !isCustomer) {
+                console.warn('Unknown role detected during login, defaulting to home:', resData?.role)
+            }
 
             await router.replace(targetRoute)
         } catch (error) {

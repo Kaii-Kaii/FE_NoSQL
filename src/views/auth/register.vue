@@ -17,26 +17,32 @@
                         <el-form-item prop="fullName">
                             <el-input v-model="form.fullName" placeholder="Họ tên" />
                         </el-form-item>
+                        <div v-if="serverErrors.fullName" class="server-error">{{ serverErrors.fullName }}</div>
 
                         <el-form-item prop="username">
                             <el-input v-model="form.username" placeholder="Tên đăng nhập" />
                         </el-form-item>
+                        <div v-if="serverErrors.username" class="server-error">{{ serverErrors.username }}</div>
 
                         <el-form-item prop="email">
                             <el-input v-model="form.email" placeholder="Email" />
                         </el-form-item>
+                        <div v-if="serverErrors.email" class="server-error">{{ serverErrors.email }}</div>
 
                         <el-form-item prop="phone">
                             <el-input v-model="form.phone" placeholder="Số điện thoại" />
                         </el-form-item>
+                        <div v-if="serverErrors.phone" class="server-error">{{ serverErrors.phone }}</div>
 
                         <el-form-item prop="address">
                             <el-input v-model="form.address" placeholder="Địa chỉ" />
                         </el-form-item>
+                        <div v-if="serverErrors.address" class="server-error">{{ serverErrors.address }}</div>
 
                         <el-form-item prop="password">
                             <el-input v-model="form.password" type="password" placeholder="Mật khẩu" show-password />
                         </el-form-item>
+                        <div v-if="serverErrors.password" class="server-error">{{ serverErrors.password }}</div>
 
                                     <el-button type="primary" class="full-btn" @click="handleRegister" :loading="loading">Đăng ký</el-button>
 
@@ -73,6 +79,7 @@ const form = ref({
 })
 const formRef = ref(null);
 const loading = ref(false);
+const serverErrors = ref({})
 const formRules = {
     fullName: [
         { required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' },
@@ -101,19 +108,41 @@ const handleRegister = () => {
     formRef.value.validate((valid) => {
         if (valid) {
             loading.value = true;
+            // clear server errors before submit
+            serverErrors.value = {}
+            // Build payload that matches backend Swagger example exactly.
+            // Backend expects: email, password, fullName, phone, address
             const registerData = {
-                fullName: form.value.fullName,
-                username: form.value.username,
                 email: form.value.email,
+                password: form.value.password,
+                fullName: form.value.fullName,
                 phone: form.value.phone,
                 address: form.value.address,
-                password: form.value.password,
             };
             register(registerData).then(() => {
                 ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.');
                 router.push({ name: 'login' });
             }).catch((error) => {
-                ElMessage.error(error.response?.data?.message || 'Đăng ký thất bại');
+                // If API returned structured validation errors, map them to serverErrors
+                const respData = error?.response?.data
+                const raw = respData?.raw || respData
+
+                // If server includes `errors` object (e.g. { errors: { email: ['msg'] } })
+                if (raw && raw.errors && typeof raw.errors === 'object') {
+                    Object.keys(raw.errors).forEach(key => {
+                        const val = raw.errors[key]
+                        serverErrors.value[key] = Array.isArray(val) ? val[0] : val
+                    })
+                    // show a general toast as well
+                    ElMessage.error(respData?.message || 'Vui lòng kiểm tra các trường nhập');
+                } else if (respData?.message) {
+                    // generic message
+                    ElMessage.error(respData.message)
+                } else if (respData?.error) {
+                    ElMessage.error(respData.error)
+                } else {
+                    ElMessage.error('Đăng ký thất bại')
+                }
             }).finally(() => {
                 loading.value = false;
             });
@@ -186,6 +215,8 @@ const handleGoogleSignIn = async () => {
 .register-form { display:flex; flex-direction:column; gap:12px }
 .full-btn { width:100%; padding:10px 12px }
 .muted { color:#6b7280; margin-top:10px; text-align:center }
+
+.server-error { color: #e53935; font-size: 13px; margin-top: 4px }
 
 @media (max-width: 880px) {
     .auth-split { grid-template-columns: 1fr; }

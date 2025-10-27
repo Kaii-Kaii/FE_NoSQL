@@ -103,7 +103,8 @@ const router = createRouter({
 });
 router.beforeEach((to, from, next) => {
   const user = localStorage.getItem("user");
-  const isAdmin = user ? JSON.parse(user).role === "admin" : false;
+  const parsedRole = user ? JSON.parse(user).role : null;
+  const isAdmin = parsedRole ? String(parsedRole).toLowerCase() === "admin" : false;
 
   if (to.meta.requiresAdmin && !isAdmin) {
     ElMessage.error("Bạn không có quyền truy cập trang này!");

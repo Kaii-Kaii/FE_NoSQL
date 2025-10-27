@@ -40,6 +40,22 @@ export function resetPassword(data) {
   })
 }
 
+export function forgotPassword(data) {
+  return request({
+    url: '/Auth/forgot-password',
+    method: 'post',
+    data
+  })
+}
+
+export function resendVerification(data) {
+  return request({
+    url: '/Auth/resend-verification',
+    method: 'post',
+    data
+  })
+}
+
 export function changePassword(data) {
   return request({
     url: '/Auth/change-password',

@@ -21,8 +21,8 @@
             <div class="form-card login-card">
               <h3 class="title">Đăng nhập</h3>
               <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-width="0" class="form">
-                <el-form-item prop="username">
-                  <el-input v-model="loginForm.username" placeholder="Tên đăng nhập" clearable />
+                <el-form-item prop="email">
+                  <el-input v-model="loginForm.email" placeholder="Email" clearable />
                 </el-form-item>
                 <el-form-item prop="password">
                   <el-input v-model="loginForm.password" type="password" placeholder="Mật khẩu" show-password />
@@ -47,15 +47,24 @@
                 <el-form-item prop="fullName">
                   <el-input v-model="registerForm.fullName" placeholder="Họ tên" />
                 </el-form-item>
-                <el-form-item prop="username">
-                  <el-input v-model="registerForm.username" placeholder="Tên đăng nhập" />
-                </el-form-item>
+                <div v-if="registerServerErrors.fullName" class="server-error">{{ registerServerErrors.fullName }}</div>
                 <el-form-item prop="email">
                   <el-input v-model="registerForm.email" placeholder="Email" />
                 </el-form-item>
+                <div v-if="registerServerErrors.email" class="server-error">{{ registerServerErrors.email }}</div>
+                <el-form-item prop="phone">
+                  <el-input v-model="registerForm.phone" placeholder="Số điện thoại" />
+                </el-form-item>
+                <div v-if="registerServerErrors.phone" class="server-error">{{ registerServerErrors.phone }}</div>
+
+                <el-form-item prop="address">
+                  <el-input v-model="registerForm.address" placeholder="Địa chỉ" />
+                </el-form-item>
+                <div v-if="registerServerErrors.address" class="server-error">{{ registerServerErrors.address }}</div>
                 <el-form-item prop="password">
                   <el-input v-model="registerForm.password" type="password" placeholder="Mật khẩu" show-password />
                 </el-form-item>
+                <div v-if="registerServerErrors.password" class="server-error">{{ registerServerErrors.password }}</div>
                 <el-button type="primary" class="full-btn" @click="doRegister" :loading="registerLoading">Đăng ký</el-button>
                 <div class="divider"><span>Hoặc</span></div>
                 <div class="socials">
@@ -69,15 +78,29 @@
       </section>
     </div>
   </div>
+
+  <el-dialog v-model="forgotDialogVisible" title="Quên mật khẩu" width="420px">
+    <el-form ref="forgotFormRef" :model="forgotForm" :rules="forgotRules" label-width="0" class="form">
+      <el-form-item prop="email">
+        <el-input v-model="forgotForm.email" placeholder="Nhập email đăng ký" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="forgotDialogVisible = false">Hủy</el-button>
+        <el-button type="primary" :loading="forgotLoading" @click="submitForgot">Gửi email</el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { register } from '@/api/auth'
+import { register, resendVerification, forgotPassword } from '@/api/auth'
 import store from '@/store'
-import { signInWithGooglePopup } from '@/utils/firebase'
+import { signInWithGooglePopup, signInWithEmail } from '@/utils/firebase'
 import { googleLogin } from '@/api/googleAuth'
 
 const router = useRouter()
@@ -86,8 +109,19 @@ const route = useRoute()
 const initialMode = route.name === 'register' ? 'register' : 'login'
 const mode = ref(initialMode)
 
-const loginForm = ref({ username: '', password: '' })
-const registerForm = ref({ fullName: '', username: '', email: '', password: '' })
+const loginForm = ref({ email: '', password: '' })
+const registerForm = ref({ fullName: '', email: '', phone: '', address: '', password: '' })
+const registerServerErrors = ref({})
+const forgotDialogVisible = ref(false)
+const forgotForm = ref({ email: '' })
+const forgotFormRef = ref(null)
+const forgotLoading = ref(false)
+const forgotRules = {
+  email: [
+    { required: true, message: 'Vui lòng nhập email', trigger: 'blur' },
+    { type: 'email', message: 'Email không hợp lệ', trigger: ['blur', 'change'] }
+  ]
+}
 
 const loginFormRef = ref(null)
 const registerFormRef = ref(null)
@@ -96,13 +130,15 @@ const loginLoading = ref(false)
 const registerLoading = ref(false)
 
 const loginRules = {
-  username: [{ required: true, message: 'Vui lòng nhập tên đăng nhập', trigger: 'blur' }],
+  email: [{ required: true, message: 'Vui lòng nhập email', trigger: 'blur' }, { type: 'email', message: 'Email không hợp lệ', trigger: ['blur', 'change'] }],
   password: [{ required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' }]
 }
 const registerRules = {
   fullName: [{ required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' }],
-  username: [{ required: true, message: 'Vui lòng nhập tên đăng nhập', trigger: 'blur' }],
+  // username is generated/optional in this flow
   email: [{ required: true, message: 'Vui lòng nhập email', trigger: 'blur' }, { type: 'email', message: 'Email không hợp lệ', trigger: ['blur', 'change'] }],
+  phone: [{ required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' }],
+  address: [{ required: true, message: 'Vui lòng nhập địa chỉ', trigger: 'blur' }],
   password: [{ required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' }]
 }
 
@@ -123,11 +159,30 @@ const doLogin = () => {
     if (!valid) return
     loginLoading.value = true
     try {
-      await store.dispatch('user/login', loginForm.value)
-      ElMessage.success('Đăng nhập thành công')
-      router.push({ name: 'home' })
+      const payload = {
+        email: loginForm.value.email,
+        password: loginForm.value.password,
+        username: loginForm.value.email // backend accepts email or username; send both to be safe
+      }
+  await store.dispatch('user/login', payload)
     } catch (e) {
-      ElMessage.error(e?.response?.data?.message || 'Đăng nhập thất bại')
+        const msg = e?.response?.data?.message || e.message || 'Đăng nhập thất bại'
+        ElMessage.error(msg)
+
+        // If error indicates account not verified, attempt to resend verification via Firebase
+        try {
+          const lower = (msg || '').toLowerCase()
+          if (lower.includes('xác minh') || lower.includes('chua xac minh') || lower.includes('chưa xác minh')) {
+            // try sign in with Firebase to obtain idToken, then call backend resend-verification
+            const { idToken } = await signInWithEmail(loginForm.value.email, loginForm.value.password)
+            if (idToken) {
+              await resendVerification({ idToken })
+              ElMessage.success('Đã gửi lại email xác minh. Vui lòng kiểm tra hộp thư của bạn.')
+            }
+          }
+        } catch (inner) {
+          console.warn('Resend verification failed', inner)
+        }
     } finally {
       loginLoading.value = false
     }
@@ -138,19 +193,45 @@ const doRegister = () => {
   registerFormRef.value.validate(async (valid) => {
     if (!valid) return
     registerLoading.value = true
+    registerServerErrors.value = {}
     try {
-      await register({
-        fullName: registerForm.value.fullName,
-        username: registerForm.value.username,
+      const payload = {
         email: registerForm.value.email,
-        password: registerForm.value.password
-      })
-      ElMessage.success('Đăng ký thành công! Vui lòng đăng nhập.')
-      // switch to login view
+        password: registerForm.value.password,
+        fullName: registerForm.value.fullName,
+        phone: registerForm.value.phone || '',
+        address: registerForm.value.address || ''
+      }
+
+      const resData = await register(payload)
+
+      ElMessage.success(resData?.message || 'Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.')
       mode.value = 'login'
       router.replace({ name: 'login' })
     } catch (e) {
-      ElMessage.error(e?.response?.data?.message || 'Đăng ký thất bại')
+      console.error('Register failed', e)
+      const respData = e?.response?.data
+      const raw = respData?.raw || respData
+
+      let message = respData?.message || respData?.error || e.message || 'Đăng ký thất bại'
+
+      if (raw && raw.errors && typeof raw.errors === 'object') {
+        Object.keys(raw.errors).forEach((key) => {
+          const val = raw.errors[key]
+          registerServerErrors.value[key] = Array.isArray(val) ? val[0] : val
+        })
+        if (!message || message === 'Đăng ký thất bại') {
+          message = 'Vui lòng kiểm tra lại các trường thông tin.'
+        }
+      } else {
+        const lower = String(message).toLowerCase()
+        if (lower.includes('email') && (lower.includes('exist') || lower.includes('exit') || lower.includes('đã tồn'))) {
+          registerServerErrors.value.email = 'Email đã tồn tại'
+          message = 'Email đã tồn tại'
+        }
+      }
+
+      ElMessage.error(message)
     } finally {
       registerLoading.value = false
     }
@@ -195,7 +276,26 @@ const handleGoogleSignIn = async () => {
 }
 
 const showForgot = () => {
-  router.push({ name: 'reset-password' })
+  forgotForm.value.email = loginForm.value.email || ''
+  forgotDialogVisible.value = true
+}
+
+const submitForgot = () => {
+  if (!forgotFormRef.value) return
+  forgotFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    try {
+      forgotLoading.value = true
+      await forgotPassword({ email: forgotForm.value.email })
+      ElMessage.success('Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.')
+      forgotDialogVisible.value = false
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.response?.data?.error || error.message || 'Gửi email đặt lại mật khẩu thất bại'
+      ElMessage.error(msg)
+    } finally {
+      forgotLoading.value = false
+    }
+  })
 }
 
 onMounted(() => {
@@ -228,6 +328,7 @@ onMounted(() => {
 .socials { display:flex; gap:10px }
 .social { flex:1 }
 .muted { color:#6b7280; margin-top:10px; text-align:center }
+.server-error { color:#e53935; font-size:13px; margin-top:-6px; margin-bottom:6px }
 
 /* When showing register, shift forms left so register card visible */
 .auth-container.show-register .forms { transform: translateX(-50%) }
