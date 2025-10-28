@@ -59,15 +59,7 @@
         <aside class="summary summary-bottom">
           <div class="summary-card">
             <h2>Đơn hàng</h2>
-            <div class="discount-row">
-            <label for="discount">Mã giảm giá</label>
-            <div style="display:flex; gap:8px; margin-top:6px; align-items:center">
-              <input id="discount" v-model="discountCode" placeholder="Nhập mã giảm giá" />
-              <button class="btn-apply whitespace-nowrap" @click="applyDiscount">Áp dụng</button>
-              <button v-if="discountDetail" class="btn-cancel-code whitespace-nowrap" @click="clearDiscount">Hủy mã</button>
-            </div>
-            <p v-if="discountMessage && !discountDetail" style="color:#b33;margin-top:6px">{{ discountMessage }}</p>
-
+            
             <!-- payment method selection -->
             <div class="pay-method">
               <div class="pay-label">Phương thức thanh toán</div>
@@ -104,17 +96,9 @@
                 </button>
               </div>
             </div>
-          </div>
           <div class="summary-row">
-            <span>Subtotal</span>
-            <span>
-              <span v-if="discountDetail" style="text-decoration:line-through;color:#999;margin-right:8px">{{ formatPrice(subtotal) }}</span>
-              <span v-else>{{ formatPrice(subtotal) }}</span>
-            </span>
-          </div>
-          <div v-if="discountDetail" class="summary-row">
-            <span>Giảm ({{ discountDetail?.code }})</span>
-            <span>-{{ formatPrice(discountAmount) }}</span>
+            <span>Tạm tính</span>
+            <span>{{ formatPrice(subtotal) }}</span>
           </div>
           <div class="summary-row total">
             <strong>Tổng</strong>
@@ -149,11 +133,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCart, saveCart, getCartDiscount, setCartDiscount, clearCartDiscount, getCartDiscountDetail, setCartDiscountDetail, clearCartDiscountDetail } from '@/api/cart'
-import axios from 'axios'
+import { getCart, saveCart } from '@/api/cart'
 import { createOrder } from '@/api/order'
 import { emit as emitEvent } from '@/utils/eventBus'
-import request from '@/api/request'
 // element-plus notification (library already installed per user)
 import { ElNotification } from 'element-plus'
 
@@ -161,16 +143,11 @@ const router = useRouter()
 const cart = ref([])
 const qrUrl = ref('')
 const showQr = ref(false)
-const discountCode = ref('')
-const discountMessage = ref('')
-const discountDetail = ref(null)
 const paymentMethod = ref('Tiền mặt')
 const savingOrder = ref(false)
 
 onMounted(() => {
   cart.value = getCart()
-  discountCode.value = getCartDiscount()
-  discountDetail.value = getCartDiscountDetail()
 })
 
 function getImage(filename) {
@@ -200,14 +177,106 @@ function notifySuccess(title, message) {
 }
 
 const subtotal = computed(() => cart.value.reduce((s, it) => s + Number(it.gia || 0) * Number(it.soluong || 0), 0))
-const discountAmount = computed(() => {
-  const d = discountDetail.value
-  return d && Number(d.amount) ? Number(d.amount) : 0
-})
-const total = computed(() => Math.max(0, subtotal.value - discountAmount.value))
+const total = computed(() => subtotal.value)
 
 function saveAndEmit() {
   saveCart(cart.value)
+}
+
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('user')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+function resolveCustomerCode(user) {
+  if (!user) return null
+  return (
+    user.code ||
+    user.customerCode ||
+    user.customer_code ||
+    user.MAKH ||
+    user.maKhachHang ||
+    user.customerID ||
+    user.customerId ||
+    user.customer_id ||
+    null
+  )
+}
+
+function resolveCustomerPhone(user) {
+  if (!user) return ''
+  return (
+    user.phone ||
+    user.phoneNumber ||
+    user.phone_number ||
+    user.dienthoai ||
+    user.dienThoai ||
+    user.dien_thoai ||
+    user.soDienThoai ||
+    user.so_dien_thoai ||
+    user.sdt ||
+    user.SDT ||
+    ''
+  )
+}
+
+function resolveCustomerAddress(user) {
+  if (!user) return ''
+  return (
+    user.address ||
+    user.addressLine ||
+    user.address_line ||
+    user.addressDetail ||
+    user.address_detail ||
+    user.diachi ||
+    user.diaChi ||
+    user.dia_chi ||
+    user.DIACHI ||
+    ''
+  )
+}
+
+function ensureCustomerProfileForCheckout(options = {}) {
+  const user = getStoredUser()
+  if (!user) {
+    if (!options.silent) {
+      ElNotification({
+        title: 'Yêu cầu đăng nhập',
+        message: 'Vui lòng đăng nhập trước khi thanh toán',
+        type: 'warning'
+      })
+      router.push({ name: 'login', query: { redirect: '/home/cart' } }).catch(() => {})
+    }
+    return null
+  }
+
+  const phone = String(resolveCustomerPhone(user) || '').trim()
+  const address = String(resolveCustomerAddress(user) || '').trim()
+
+  if (!phone || !address) {
+    if (!options.silent) {
+      ElNotification({
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng cập nhật địa chỉ và số điện thoại trước khi thanh toán.',
+        type: 'warning'
+      })
+      router.push({ name: 'profile', query: { tab: 'info' } }).catch(() => {})
+    }
+    return null
+  }
+
+  return {
+    user,
+    code: resolveCustomerCode(user),
+    phone,
+    address
+  }
 }
 
 function removeItem(masach) {
@@ -218,8 +287,6 @@ function removeItem(masach) {
 function clearCart() {
   cart.value = []
   try { localStorage.removeItem('cart') } catch (e) {}
-  try { clearCartDiscount() } catch (e) {}
-  try { clearCartDiscountDetail() } catch (e) {}
   // emit a cart-changed event so header updates
   try { if (typeof emitEvent === 'function') emitEvent('cart-changed') } catch (e) {}
 }
@@ -235,30 +302,9 @@ function decrease(item) {
   saveAndEmit()
 }
 
-// clear applied discount code and detail
-function clearDiscount() {
-  try { setCartDiscount('') } catch (e) {}
-  try { clearCartDiscountDetail() } catch (e) {}
-  discountDetail.value = null
-  discountMessage.value = ''
-  // keep the code input but you can also wipe it
-  // discountCode.value = ''
-}
-
 function onQtyChange(item) {
   if ((Number(item.soluong) || 0) < 1) item.soluong = 1
   saveAndEmit()
-}
-
-function getCurrentCustomerCode() {
-  try {
-    const raw = localStorage.getItem('user')
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    return parsed?.code || null
-  } catch (e) {
-    return null
-  }
 }
 
 function checkout() {
@@ -266,6 +312,12 @@ function checkout() {
     alert('Giỏ hàng trống')
     return
   }
+
+  const customerProfile = ensureCustomerProfileForCheckout()
+  if (!customerProfile) {
+    return
+  }
+
   // If payment method is bank transfer, show QR modal. Otherwise save order immediately (cash)
   if (paymentMethod.value === 'Chuyển khoản') {
     const amount = total.value
@@ -284,9 +336,15 @@ async function saveOrderAndClear() {
   try {
     savingOrder.value = true
 
-    const customerCode = getCurrentCustomerCode()
+    const customerProfile = ensureCustomerProfileForCheckout()
+    if (!customerProfile) {
+      showQr.value = false
+      return
+    }
+
+    const customerCode = customerProfile.code
     if (!customerCode) {
-      ElNotification({ title: 'Warning', message: 'Vui lòng đăng nhập trước khi lưu đơn hàng', type: 'warning' })
+      ElNotification({ title: 'Lỗi', message: 'Không tìm thấy mã khách hàng để tạo đơn hàng', type: 'error' })
       showQr.value = false
       return
     }
@@ -308,10 +366,6 @@ async function saveOrderAndClear() {
       })),
         paymentMethod: methodCode,
         paymentMethodDisplay: methodDisplay
-    }
-
-    if (discountCode.value) {
-      payload.discountCode = discountCode.value
     }
 
     const res = await createOrder(payload)
@@ -344,34 +398,6 @@ async function saveOrderAndClear() {
   }
 }
 
-async function applyDiscount() {
-  // Validate discount by fetching discounts list and applying rules client-side
-  const code = String(discountCode.value || '').trim()
-  if (!code) {
-    discountMessage.value = 'Vui lòng nhập mã giảm giá'
-    return
-  }
-  discountMessage.value = 'Đang kiểm tra mã...'
-  try {
-    // call backend validate endpoint which returns exact discount amount and code info
-    const res = await request({ url: '/discounts/validate', method: 'post', data: { ma_code: code, tongtien: subtotal.value } })
-    // response from DiscountController::validateCode: { success: true, discount, code }
-    if (!res || !res.success) {
-      discountMessage.value = res?.message || 'Mã giảm giá không hợp lệ'
-      return
-    }
-    const amount = Number(res.discount || 0)
-    const detail = { code, amount, meta: res.code || null }
-    setCartDiscount(code)
-    setCartDiscountDetail(detail)
-    discountDetail.value = detail
-    discountMessage.value = ''
-    notifySuccess('Success', `Áp dụng mã ${code} thành công`)
-  } catch (e) {
-    console.error(e)
-    discountMessage.value = e?.response?.data?.message || 'Lỗi khi kiểm tra mã'
-  }
-}
 </script>
 
 <style scoped>
@@ -460,8 +486,6 @@ async function applyDiscount() {
 .cart-footer { display:flex; flex-direction:column; gap:14px; margin:12px 0 }
 .coupon { display:flex; gap:12px; align-items:center }
 .coupon input { padding:10px 12px; border-radius:999px; border:1px solid #f0e0e0; width:260px }
-.btn-apply { background:#ff8a66; color:#fff; border:none; padding:10px 16px; border-radius:999px; cursor:pointer }
-.btn-cancel-code { background:#fff; color:#c0392b; border:1px solid #f2bdb3; padding:10px 14px; border-radius:999px; cursor:pointer }
 .actions { display:flex; gap:12px }
 .btn-update { background:#fff; border:1px solid #e6a6a6; padding:10px 18px; border-radius:999px }
 .btn-continue { display:inline-flex; align-items:center; padding:10px 18px; background:#ff8a66; color:#fff; border-radius:999px }
@@ -475,9 +499,6 @@ async function applyDiscount() {
 
 /* card inside bottom summary to match previous summary visual weight */
 .summary-bottom .summary-card { width:100%; padding:18px 20px; border-radius:12px; background:linear-gradient(180deg,#fff,#f8fbff); box-shadow:0 8px 30px rgba(11,22,40,0.06) }
-.summary-bottom .discount-row { display:block }
-.summary-bottom input#discount { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #eee; box-sizing:border-box }
-.summary-bottom .btn-apply { padding:10px 14px }
 .summary-bottom .summary-actions { display:flex; gap:12px; margin-top:16px }
 .summary-bottom label { cursor:pointer }
 .summary-bottom input[type="radio"] { accent-color:#ff8a66 }

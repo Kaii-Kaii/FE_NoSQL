@@ -65,6 +65,7 @@
                         <th>SL</th>
                         <th>Đơn giá</th>
                         <th>Thành tiền</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -74,6 +75,16 @@
                         <td>{{ item.quantity }}</td>
                         <td>{{ formatPrice(item.unitPrice) }}</td>
                         <td>{{ formatPrice(item.lineTotal) }}</td>
+                        <td class="actions-cell">
+                          <button
+                            v-if="item.bookCode && order.status === 'HoanThanh'"
+                            type="button"
+                            class="review-btn"
+                            @click="goToBookDetails(item.bookCode)"
+                          >
+                            Đánh giá
+                          </button>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -109,6 +120,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getOrdersByCustomer, confirmOrder as confirmOrderApi } from '@/api/order'
 import { on as onEvent, emit as emitEvent } from '@/utils/eventBus'
@@ -146,6 +158,14 @@ let pendingRefresh = false
 let disposeOrderEvent = null
 
 const hasCustomerCode = computed(() => Boolean(props.customerCode))
+
+const router = useRouter()
+
+const goToBookDetails = (bookCode) => {
+  const code = String(bookCode || '').trim()
+  if (!code) return
+  router.push({ name: 'book-details', params: { code } })
+}
 
 const statusCounts = computed(() => {
   const base = Object.fromEntries(statusTabs.map((tab) => [tab.key, 0]))
@@ -577,6 +597,33 @@ onBeforeUnmount(() => {
 .order-actions {
   display: flex;
   gap: 12px;
+
+.order-details .actions-cell {
+  text-align: right;
+  min-width: 110px;
+}
+
+.review-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #d17057, #b85d47);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.review-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(184, 93, 71, 0.25);
+}
+
+.review-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
   justify-content: flex-end;
   flex-wrap: wrap;
 }
