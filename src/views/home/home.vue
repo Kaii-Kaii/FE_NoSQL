@@ -128,7 +128,7 @@
               <div class="top-info-row">
                 <div class="top-book-rating">
                   <i class="fas fa-star"></i>
-                  <span>4.5</span>
+                  <span>{{ formatRating(book.AVERAGE_RATING ?? book.averageRating) }}</span>
                 </div>
                 <div class="top-book-prices">
                   <span class="top-price-current">{{ formatPrice(book.price) }}</span>
@@ -541,6 +541,72 @@ const searchQuery = ref('');
 const wishlistIds = ref(getWishlistIds());
 const topBooksWishlistIds = ref(new Set());
 
+const resolveAverageRating = (book) => {
+  if (!book || typeof book !== 'object') return 0
+  const candidates = [
+    book.AVERAGE_RATING,
+    book.averageRating,
+    book.average_rating,
+    book.avgRating,
+    book.avg_rating,
+    book.rating,
+    book.RATING,
+    book.star,
+    book.SAO,
+    book.meanRating,
+    book.mean_rating,
+    book.reviewScore,
+    book.review_score,
+    book.reviewStats?.averageRating,
+    book.reviewStats?.average_rating,
+    book.reviewSummary?.averageRating,
+    book.reviewSummary?.average_rating,
+    book.reviewSummary?.average,
+    book.review_summary?.average,
+    book.reviews?.averageRating,
+    book.reviews?.avgRating,
+    book.statistics?.averageRating,
+    book.statistics?.avgRating,
+    book.stats?.averageRating,
+    book.stats?.avgRating
+  ]
+
+  for (const candidate of candidates) {
+    const num = Number(candidate)
+    if (!Number.isNaN(num) && Number.isFinite(num)) {
+      if (num < 0) return 0
+      return Math.min(5, num)
+    }
+  }
+
+  return 0
+}
+
+const normalizeBookRecord = (rawBook = {}) => {
+  const fallbackStock = rawBook.inStock ?? rawBook.SOLUONG
+  const rawId = rawBook.code || rawBook.MASACH || rawBook._id || rawBook.id
+  const rating = resolveAverageRating(rawBook)
+
+  return {
+    ...rawBook,
+    MASACH: rawId != null ? String(rawId) : null,
+    TENSACH: rawBook.name || rawBook.TENSACH,
+    TACGIA: rawBook.author || rawBook.TACGIA || 'Unknown',
+    GIATIEN: rawBook.price ?? rawBook.GIATIEN,
+    GIAGOC: rawBook.originalPrice ?? rawBook.GIAGOC,
+    URLSACH: rawBook.coverUrl || rawBook.image || rawBook.URLSACH || rawBook.ANHSACH,
+    ANHSACH: rawBook.coverUrl || rawBook.image || rawBook.ANHSACH || rawBook.URLSACH,
+    MADANHMUC: rawBook.category?.code || rawBook.categoryCode || rawBook.MADANHMUC,
+    category: rawBook.category || rawBook.categoryData || null,
+    SOLUONG: fallbackStock ?? 0,
+    TRANGTHAI: rawBook.status || rawBook.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'),
+    ISHOT: rawBook.isHot || rawBook.ISHOT || false,
+    DISCOUNT: rawBook.discount || rawBook.DISCOUNT || 0,
+    AVERAGE_RATING: rating,
+    averageRating: rating
+  }
+}
+
 // Wishlist helpers
 function isWished(id) {
   try {
@@ -674,7 +740,9 @@ onMounted(async () => {
   // Fetch top 5 books
   try {
     const topRes = await getTopBooks(5)
-    topBooks.value = Array.isArray(topRes) ? topRes : topRes?.data ?? []
+    const rawTop = Array.isArray(topRes) ? topRes : topRes?.data ?? []
+    topBooks.value = rawTop.map((book) => normalizeBookRecord(book))
+    topBooksWishlistIds.value = getWishlistIds()
     console.log('Top books loaded:', topBooks.value.length)
   } catch (e) {
     console.error('Error fetching top books:', e)
@@ -685,24 +753,7 @@ onMounted(async () => {
   try {
     const res = await listBook({ per_page: 5, page: 1 })
     const rawBooks = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
-    books.value = rawBooks.map((book) => {
-      const fallbackStock = book.inStock ?? book.SOLUONG
-      const rawId = book.code || book.MASACH || book._id || book.id
-      return {
-        ...book,
-        MASACH: rawId != null ? String(rawId) : null,
-        TENSACH: book.name || book.TENSACH,
-        TACGIA: book.author || book.TACGIA || 'Unknown',
-        GIATIEN: book.price ?? book.GIATIEN,
-        GIAGOC: book.originalPrice ?? book.GIAGOC,
-        URLSACH: book.coverUrl || book.image || book.URLSACH || book.ANHSACH,
-        ANHSACH: book.coverUrl || book.image || book.ANHSACH || book.URLSACH,
-        MADANHMUC: book.category?.code || book.categoryCode || book.MADANHMUC,
-        category: book.category || book.categoryData || null,
-        SOLUONG: fallbackStock ?? 0,
-        TRANGTHAI: book.status || book.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng')
-      }
-    })
+    books.value = rawBooks.map((book) => normalizeBookRecord(book))
   } catch (e) {
     books.value = []
   }
@@ -717,7 +768,8 @@ onMounted(async () => {
     const onBooksChanged = async () => {
       try {
         const r = await listBook({ per_page: 5, page: 1 })
-        books.value = r?.data ?? r ?? []
+        const rawList = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : [])
+        books.value = rawList.map((book) => normalizeBookRecord(book))
       } catch (e) {
         // ignore
       }
@@ -789,6 +841,15 @@ function handleAddToCart(book) {
 function getImage(filename) {
   return `${filename}`;
 }
+
+function formatRating(value) {
+  const num = Number(value)
+  if (!Number.isNaN(num) && Number.isFinite(num) && num > 0) {
+    return num.toFixed(1)
+  }
+  return '0'
+}
+
 function formatPrice(price) {
   return Number(price).toLocaleString("vi-VN") + "₫";
 }

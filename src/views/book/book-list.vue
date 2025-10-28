@@ -58,7 +58,7 @@
             <div class="info-row">
               <div class="book-rating">
                 <i class="fas fa-star"></i>
-                <span>4.5</span>
+                <span>{{ formatRating(book.AVERAGE_RATING) }}</span>
               </div>
               <div class="book-prices">
                 <span class="price-current">{{ formatPrice(book.GIATIEN) }}</span>
@@ -134,6 +134,40 @@ const props = defineProps({
 })
 
 const router = useRouter()
+
+const resolveAverageRating = (book) => {
+  if (!book || typeof book !== 'object') return 0
+  const candidates = [
+    book.AVERAGE_RATING,
+    book.averageRating,
+    book.average_rating,
+    book.avgRating,
+    book.avg_rating,
+    book.rating,
+    book.RATING,
+    book.star,
+    book.SAO,
+    book.reviewStats?.averageRating,
+    book.reviewStats?.average_rating,
+    book.reviewSummary?.averageRating,
+    book.reviewSummary?.average_rating,
+    book.reviewSummary?.average,
+    book.review_summary?.average,
+    book.statistics?.averageRating,
+    book.stats?.averageRating,
+    book.reviews?.averageRating
+  ]
+
+  for (const candidate of candidates) {
+    const num = Number(candidate)
+    if (!Number.isNaN(num) && Number.isFinite(num)) {
+      if (num < 0) return 0
+      return Math.min(5, num)
+    }
+  }
+
+  return 0
+}
 
 const allBooks = ref([]) // Lưu toàn bộ sách
 const currentPage = ref(1) // Trang hiện tại cho phân trang frontend
@@ -254,6 +288,7 @@ const fetchBooks = async () => {
       const fallbackStock = book.inStock ?? book.SOLUONG
       const rawId = book.code || book.MASACH || book._id || book.id
       const resolvedCategoryCode = book.category?.code || book.categoryCode || book.MADANHMUC || book.category?.Code
+      const rating = resolveAverageRating(book)
       return {
         ...book,
         MASACH: rawId != null ? String(rawId) : null,
@@ -269,7 +304,9 @@ const fetchBooks = async () => {
         ISHOT: book.isHot || book.ISHOT || false,
         DISCOUNT: book.discount || book.DISCOUNT || 0,
         SOLUONG: fallbackStock ?? 0,
-        TRANGTHAI: book.status || book.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng')
+        TRANGTHAI: book.status || book.TRANGTHAI || ((fallbackStock ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'),
+        AVERAGE_RATING: rating,
+        averageRating: rating
       }
     })
     
@@ -309,6 +346,14 @@ const formatPrice = (price) => {
     style: 'currency',
     currency: 'VND',
   }).format(price)
+}
+
+const formatRating = (rating) => {
+  const num = Number(rating)
+  if (!Number.isNaN(num) && Number.isFinite(num) && num > 0) {
+    return num.toFixed(1)
+  }
+  return '0'
 }
 
 // Xử lý lỗi hình ảnh

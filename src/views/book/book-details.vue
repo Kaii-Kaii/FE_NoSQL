@@ -304,7 +304,14 @@
                       <div class="review-header">
                         <div class="reviewer-info">
                           <div class="reviewer-avatar">
-                            <i class="fas fa-user-circle"></i>
+                            <img
+                              v-if="hasReviewerAvatar(review)"
+                              :src="getReviewerAvatar(review)"
+                              :alt="getReviewerName(review)"
+                              class="avatar-image"
+                              @error="onReviewerAvatarError(review)"
+                            />
+                            <i v-else class="fas fa-user-circle"></i>
                           </div>
                           <div>
                             <h6 class="reviewer-name">{{ getReviewerName(review) }}</h6>
@@ -365,7 +372,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { getBookByCode } from '@/api/book'
 import { addToCart } from '@/api/cart'
 import { toggleWishlist, isInWishlist } from '@/api/wishlist'
-import { getReviewsByBook, getReviewStatsByBook, createReview, updateReview, deleteReview } from '@/api/review'
+import { getReviewsByBook, createReview, updateReview, deleteReview } from '@/api/review'
+import { getOrdersByCustomer } from '@/api/order'
 import { ElNotification } from 'element-plus'
 import CategoryBooks from '@/views/category/category-books.vue'
 
@@ -402,6 +410,9 @@ const newReview = ref({
 const hoverRating = ref(0)
 const submittingReview = ref(false)
 const userExistingReview = ref(null) // Lưu đánh giá hiện tại của user nếu có
+const eligibleOrders = ref([])
+const selectedOrderCode = ref('')
+const loadingEligibleOrders = ref(false)
 
 // Get current user from localStorage
 const currentUser = computed(() => {
@@ -416,6 +427,34 @@ const currentUser = computed(() => {
   }
   return null
 })
+
+const customerCode = computed(() => {
+  const user = currentUser.value
+  if (!user) return null
+  return (
+    user.code ||
+    user.customerCode ||
+    user.customer_code ||
+    user.MAKH ||
+    user.customerID ||
+    null
+  )
+})
+
+const resolveCurrentUserIdentifier = () => {
+  if (customerCode.value) return customerCode.value
+  const user = currentUser.value
+  if (!user) return null
+  return (
+    user.id ||
+    user.ID ||
+    user.MANGUOIDUNG ||
+    user.manguoidung ||
+    user.MA_NGUOI_DUNG ||
+    user.userId ||
+    null
+  )
+}
 
 // Computed để lấy tên danh mục (có thể cải thiện bằng cách gọi API category)
 const categoryName = computed(() => {
@@ -689,20 +728,14 @@ const fetchReviews = async () => {
   loadingReviews.value = true
   try {
     const response = await getReviewsByBook(book.value.MASACH)
-    const reviewsData = Array.isArray(response) ? response : (response?.data || [])
-    
-    // Backend đã include nguoi_dung qua relationship ->with('nguoiDung')
-    // Nên không cần fetch riêng, chỉ cần log để kiểm tra
-    console.log('Reviews loaded:', reviewsData)
-    console.log('Sample review with user:', reviewsData[0])
-    
-    reviews.value = reviewsData
-    
-    // Kiểm tra xem user hiện tại đã có đánh giá chưa
+    const reviewsData = Array.isArray(response) ? response : response?.data ?? []
+  reviews.value = reviewsData.map((review, index) => normalizeReviewItem(review, index))
+    recalculateReviewStats()
     checkUserExistingReview()
   } catch (error) {
     console.error('Error fetching reviews:', error)
     reviews.value = []
+    reviewStats.value = { ...defaultReviewStats }
   } finally {
     loadingReviews.value = false
   }
@@ -712,21 +745,24 @@ const fetchReviews = async () => {
 const checkUserExistingReview = () => {
   if (!currentUser.value) {
     userExistingReview.value = null
+    ensureDefaultOrderSelection()
     return
   }
-  
-  // Lấy user ID từ các trường có thể
-  const userId = currentUser.value.id || 
-                 currentUser.value.ID || 
-                 currentUser.value.MANGUOIDUNG || 
-                 currentUser.value.manguoidung || 
-                 currentUser.value.MA_NGUOI_DUNG
-  
-  // Tìm review của user trong danh sách reviews
-  const existingReview = reviews.value.find(review => 
-    review.MANGUOIDUNG == userId
-  )
-  
+
+  const userId = resolveCurrentUserIdentifier()
+  if (!userId) {
+    userExistingReview.value = null
+    ensureDefaultOrderSelection()
+    return
+  }
+
+  const normalizedUser = String(userId).trim().toUpperCase()
+  const existingReview = reviews.value.find((review) => {
+    const reviewUser = review.MANGUOIDUNG ?? review.customerCode ?? review.raw?.customerCode
+    if (!reviewUser) return false
+    return String(reviewUser).trim().toUpperCase() === normalizedUser
+  })
+
   if (existingReview) {
     userExistingReview.value = existingReview
     // Load dữ liệu đánh giá cũ vào form
@@ -736,7 +772,7 @@ const checkUserExistingReview = () => {
       MASACH: existingReview.MASACH,
       MANGUOIDUNG: existingReview.MANGUOIDUNG
     }
-    console.log('User already has a review:', existingReview)
+    selectedOrderCode.value = existingReview.ORDERCODE || ''
   } else {
     userExistingReview.value = null
     // Reset form nếu chưa có đánh giá
@@ -746,30 +782,7 @@ const checkUserExistingReview = () => {
       MASACH: book.value?.MASACH,
       MANGUOIDUNG: userId
     }
-  }
-}
-
-// Fetch review statistics
-const fetchReviewStats = async () => {
-  if (!book.value?.MASACH) return
-  
-  try {
-    const response = await getReviewStatsByBook(book.value.MASACH)
-    if (response) {
-      reviewStats.value = {
-        total_reviews: response.total_reviews || 0,
-        average_rating: parseFloat(response.average_rating) || 0,
-        five_star: response.five_star || 0,
-        four_star: response.four_star || 0,
-        three_star: response.three_star || 0,
-        two_star: response.two_star || 0,
-        one_star: response.one_star || 0
-      }
-    }
-    console.log('Review stats loaded:', reviewStats.value)
-  } catch (error) {
-    console.error('Error fetching review stats:', error)
-    reviewStats.value = { ...defaultReviewStats }
+    ensureDefaultOrderSelection()
   }
 }
 
@@ -792,24 +805,314 @@ const getStarPercentage = (star) => {
   return (count / reviewStats.value.total_reviews) * 100
 }
 
+const recalculateReviewStats = () => {
+  const list = Array.isArray(reviews.value) ? reviews.value : []
+  if (!list.length) {
+    reviewStats.value = { ...defaultReviewStats }
+    return
+  }
+
+  const nextStats = {
+    total_reviews: list.length,
+    average_rating: 0,
+    five_star: 0,
+    four_star: 0,
+    three_star: 0,
+    two_star: 0,
+    one_star: 0
+  }
+
+  let totalRating = 0
+  list.forEach((review) => {
+    const rating = Number(review?.SAO ?? review?.rating ?? 0) || 0
+    totalRating += rating
+    const rounded = Math.round(rating)
+    switch (rounded) {
+      case 5:
+        nextStats.five_star += 1
+        break
+      case 4:
+        nextStats.four_star += 1
+        break
+      case 3:
+        nextStats.three_star += 1
+        break
+      case 2:
+        nextStats.two_star += 1
+        break
+      default:
+        nextStats.one_star += 1
+        break
+    }
+  })
+
+  nextStats.average_rating = totalRating / list.length
+  reviewStats.value = nextStats
+}
+
+const normalizeKey = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/gi, '')
+    .toLowerCase()
+
+const canonicalOrderStatus = (value) => {
+  const key = normalizeKey(value)
+  if (!key) return ''
+  if (key.includes('hoanthanh') || key.includes('completed') || key.includes('success')) {
+    return 'HoanThanh'
+  }
+  if (key.includes('danggiao') || key.includes('shipping') || key.includes('ship')) {
+    return 'DangGiao'
+  }
+  if (key.includes('dadathang') || key.includes('pending')) {
+    return 'DaDatHang'
+  }
+  return key
+}
+
+const pickFirstTruthy = (values = []) => {
+  for (const value of values) {
+    if (!value) continue
+    const text = String(value).trim()
+    if (text) return text
+  }
+  return ''
+}
+
+const normalizeReviewItem = (raw = {}, index = 0) => {
+  const id = raw.reviewId ?? raw.id ?? raw.MADANHGIA ?? raw.code ?? `REVIEW-${index + 1}`
+  const customer =
+    raw.customerCode ??
+    raw.customer_code ??
+    raw.customerId ??
+    raw.customer_id ??
+    raw.MANGUOIDUNG ??
+    raw.userId ??
+    raw.nguoi_dung?.MANGUOIDUNG ??
+    null
+
+  const avatarUrl = pickFirstTruthy([
+    raw.avatarUrl,
+    raw.avatarURL,
+    raw.avatar_url,
+    raw.reviewerAvatar,
+    raw.reviewer_avatar,
+    raw.customerAvatar,
+    raw.customer_avatar,
+    raw.nguoi_dung?.ANHDAIDIEN,
+    raw.nguoi_dung?.avatar,
+    raw.nguoi_dung?.avatarUrl,
+    raw.nguoi_dung?.avatar_url
+  ])
+
+  return {
+    MADANHGIA: String(id),
+    SAO: Number(raw.rating ?? raw.SAO ?? raw.stars ?? 0) || 0,
+    NOIDUNG: raw.content ?? raw.NOIDUNG ?? raw.message ?? '',
+    MANGUOIDUNG: customer,
+    MASACH:
+      raw.bookCode ??
+      raw.book_code ??
+      raw.MASACH ??
+      raw.masach ??
+      raw.book?.code ??
+      raw.book?.MASACH ??
+      null,
+    ORDERCODE: raw.orderCode ?? raw.order_code ?? raw.ORDERCODE ?? null,
+    NGAYTAO: raw.createdAt ?? raw.created_at ?? raw.NGAYTAO ?? raw.createdDate ?? raw.created_time ?? null,
+    reviewerName:
+      raw.reviewerName ??
+      raw.reviewer ??
+      raw.customerName ??
+      raw.customer_name ??
+      raw.nguoi_dung?.TENNGUOIDUNG ??
+      raw.nguoi_dung?.HOTEN ??
+      raw.nguoi_dung?.EMAIL ??
+      'Người dùng',
+    nguoi_dung: raw.nguoi_dung ?? null,
+    AVATAR: avatarUrl,
+    avatarUrl,
+    avatar: avatarUrl,
+    raw
+  }
+}
+
+const normalizeOrderItems = (rawItems) => {
+  if (!Array.isArray(rawItems)) return []
+  return rawItems.map((item) => {
+    const code =
+      item.bookCode ??
+      item.book_code ??
+      item.code ??
+      item.book?.code ??
+      item.BookCode ??
+      item.MASACH ??
+      item.masp ??
+      item.masach ??
+      item.book?.MASACH ??
+      ''
+    return {
+      bookCode: code ? String(code).trim().toUpperCase() : ''
+    }
+  })
+}
+
+const normalizeOrderForReview = (order, index = 0) => {
+  const orderCode =
+    order.code ??
+    order.orderCode ??
+    order.order_code ??
+    order.mahd ??
+    order.ID ??
+    order.id ??
+    `ORDER-${index + 1}`
+  const createdAt = order.createdAt ?? order.created_at ?? order.createdDate ?? order.ngaylap ?? null
+
+  return {
+    orderCode: String(orderCode),
+    status: canonicalOrderStatus(order.status ?? order.trangthai ?? order.Status),
+    createdAt,
+    items: normalizeOrderItems(order.items ?? order.chitiet ?? order.orderDetails ?? order.details ?? [])
+  }
+}
+
+const formatOrderLabel = (order) => {
+  const date = order.createdAt ? formatDate(order.createdAt) : 'Không rõ thời gian'
+  return `${order.orderCode} • ${date}`
+}
+
+const ensureDefaultOrderSelection = () => {
+  if (userExistingReview.value?.ORDERCODE) {
+    selectedOrderCode.value = userExistingReview.value.ORDERCODE
+    return
+  }
+  const firstOrder = eligibleOrders.value[0]
+  selectedOrderCode.value = firstOrder ? firstOrder.orderCode : ''
+}
+
+const fetchEligibleOrders = async (customer, bookCode) => {
+  if (!customer || !bookCode) {
+    eligibleOrders.value = []
+    if (!userExistingReview.value) {
+      selectedOrderCode.value = ''
+    }
+    return
+  }
+
+  loadingEligibleOrders.value = true
+  try {
+    const response = await getOrdersByCustomer(customer)
+    const rawList = Array.isArray(response) ? response : response?.data ?? []
+    const normalizedOrders = rawList.map((order, index) => normalizeOrderForReview(order, index))
+    const targetCode = String(bookCode).trim().toUpperCase()
+    const eligible = normalizedOrders.filter((order) => {
+      if (order.status !== 'HoanThanh') return false
+      return order.items.some((item) => item.bookCode === targetCode)
+    })
+    const mapped = eligible.map((order) => ({
+      orderCode: order.orderCode,
+      createdAt: order.createdAt,
+      label: formatOrderLabel(order)
+    }))
+    eligibleOrders.value = mapped
+    ensureDefaultOrderSelection()
+  } catch (error) {
+    console.error('fetchEligibleOrders error', error)
+    eligibleOrders.value = []
+    if (!userExistingReview.value) {
+      selectedOrderCode.value = ''
+    }
+  } finally {
+    loadingEligibleOrders.value = false
+  }
+}
+
 // Set rating for new review
 const setRating = (star) => {
   newReview.value.SAO = star
 }
 
-// Get reviewer name from review object
-const getReviewerName = (review) => {
-  // Kiểm tra các trường hợp khác nhau của tên người dùng
-  if (review.nguoi_dung) {
-    return review.nguoi_dung.TENNGUOIDUNG || 
-           review.nguoi_dung.TEN || 
-           review.nguoi_dung.HOTEN || 
-           review.nguoi_dung.EMAIL || 
-           'Người dùng'
+// Resolve reviewer display name from various payload shapes
+const getReviewerName = (review = {}) => {
+  const candidateStrings = [
+    review.reviewerName,
+    review.reviewer_name,
+    review.customerName,
+    review.customer_name,
+    review.raw?.reviewerName,
+    review.raw?.reviewer_name,
+    review.raw?.customerName,
+    review.raw?.customer_name,
+    review.raw?.nguoi_dung?.TENNGUOIDUNG,
+    review.raw?.nguoi_dung?.TEN,
+    review.raw?.nguoi_dung?.HOTEN,
+    review.raw?.nguoi_dung?.EMAIL
+  ]
+
+  for (const value of candidateStrings) {
+    if (!value) continue
+    const name = String(value).trim()
+    if (name) return name
   }
-  
-  // Fallback nếu không có thông tin nguoi_dung
+
+  if (review.nguoi_dung) {
+    const fromNested = [
+      review.nguoi_dung.TENNGUOIDUNG,
+      review.nguoi_dung.TEN,
+      review.nguoi_dung.HOTEN,
+      review.nguoi_dung.EMAIL
+    ]
+    for (const value of fromNested) {
+      if (!value) continue
+      const name = String(value).trim()
+      if (name) return name
+    }
+  }
+
   return 'Người dùng'
+}
+
+const getReviewerAvatar = (review = {}) => {
+  const candidates = [
+    review.avatarUrl,
+    review.AVATAR,
+    review.avatar,
+    review.avatar_url,
+    review.raw?.avatarUrl,
+    review.raw?.avatar_url,
+    review.raw?.reviewerAvatar,
+    review.raw?.reviewer_avatar,
+    review.raw?.customerAvatar,
+    review.raw?.customer_avatar,
+    review.nguoi_dung?.ANHDAIDIEN,
+    review.nguoi_dung?.avatar,
+    review.nguoi_dung?.avatarUrl,
+    review.nguoi_dung?.avatar_url
+  ]
+
+  return pickFirstTruthy(candidates)
+}
+
+const avatarErrorMap = ref({})
+
+const hasReviewerAvatar = (review = {}) => {
+  const id = review?.MADANHGIA
+  if (id && avatarErrorMap.value[id]) return false
+  return Boolean(getReviewerAvatar(review))
+}
+
+const onReviewerAvatarError = (review = {}) => {
+  const id = review?.MADANHGIA
+  if (!id) return
+  avatarErrorMap.value = { ...avatarErrorMap.value, [id]: true }
+  const target = reviews.value.find((item) => item.MADANHGIA === id)
+  if (target) {
+    target.avatarUrl = ''
+    target.AVATAR = ''
+    target.avatar = ''
+  }
 }
 
 // Format date
@@ -838,6 +1141,16 @@ const submitReview = async () => {
     return
   }
 
+  const customer = resolveCurrentUserIdentifier()
+  if (!customer) {
+    ElNotification({
+      title: 'Lỗi',
+      message: 'Không tìm thấy thông tin khách hàng để gửi đánh giá',
+      type: 'error'
+    })
+    return
+  }
+
   if (!newReview.value.SAO || !newReview.value.NOIDUNG.trim()) {
     ElNotification({
       title: 'Lỗi',
@@ -847,25 +1160,25 @@ const submitReview = async () => {
     return
   }
 
+  if (!userExistingReview.value && !selectedOrderCode.value) {
+    ElNotification({
+      title: 'Thiếu thông tin',
+      message: 'Vui lòng chọn đơn hàng đã mua sách này để đánh giá',
+      type: 'warning'
+    })
+    return
+  }
+
   submittingReview.value = true
   try {
-    // Get user ID from various possible field names
-    const userId = currentUser.value.id || 
-                   currentUser.value.ID || 
-                   currentUser.value.MANGUOIDUNG || 
-                   currentUser.value.manguoidung || 
-                   currentUser.value.MA_NGUOI_DUNG
-
     const reviewData = {
-      NOIDUNG: newReview.value.NOIDUNG.trim(),
-      SAO: newReview.value.SAO,
-      MASACH: book.value.MASACH,
-      MANGUOIDUNG: userId
+      rating: newReview.value.SAO,
+      content: newReview.value.NOIDUNG.trim()
     }
 
     if (userExistingReview.value) {
       // Cập nhật đánh giá cũ
-      await updateReview(userExistingReview.value.MADANHGIA, reviewData)
+      await updateReview(book.value.MASACH, userExistingReview.value.MADANHGIA, reviewData, customer)
       
       ElNotification({
         title: 'Thành công',
@@ -874,7 +1187,16 @@ const submitReview = async () => {
       })
     } else {
       // Tạo đánh giá mới
-      await createReview(reviewData)
+      await createReview(
+        {
+          bookCode: book.value.MASACH,
+          orderCode: selectedOrderCode.value,
+          rating: reviewData.rating,
+          content: reviewData.content,
+          customerCode: customer
+        },
+        customer
+      )
       
       ElNotification({
         title: 'Thành công',
@@ -883,8 +1205,11 @@ const submitReview = async () => {
       })
     }
 
-    // Refresh reviews and stats
-    await Promise.all([fetchReviews(), fetchReviewStats()])
+    // Refresh reviews và danh sách đơn đủ điều kiện
+    await Promise.all([
+      fetchReviews(),
+      fetchEligibleOrders(customerCode.value, book.value?.MASACH)
+    ])
   } catch (error) {
     console.error('Error submitting review:', error)
     ElNotification({
@@ -900,34 +1225,41 @@ const submitReview = async () => {
 // Delete user's review
 const deleteUserReview = async () => {
   if (!userExistingReview.value) return
-  
+
+  const customer = resolveCurrentUserIdentifier()
+  if (!customer) {
+    ElNotification({
+      title: 'Lỗi',
+      message: 'Không tìm thấy thông tin khách hàng để xóa đánh giá',
+      type: 'error'
+    })
+    return
+  }
+
   submittingReview.value = true
   try {
-    await deleteReview(userExistingReview.value.MADANHGIA)
-    
+    await deleteReview(book.value.MASACH, userExistingReview.value.MADANHGIA, customer)
+
     ElNotification({
       title: 'Thành công',
       message: 'Đã xóa đánh giá của bạn',
       type: 'success'
     })
-    
+
     // Reset form và state
     userExistingReview.value = null
-    const userId = currentUser.value.id || 
-                   currentUser.value.ID || 
-                   currentUser.value.MANGUOIDUNG || 
-                   currentUser.value.manguoidung || 
-                   currentUser.value.MA_NGUOI_DUNG
-    
     newReview.value = {
       NOIDUNG: '',
       SAO: 0,
-      MASACH: book.value.MASACH,
-      MANGUOIDUNG: userId
+      MASACH: book.value?.MASACH,
+      MANGUOIDUNG: customer
     }
-    
-    // Refresh reviews and stats
-    await Promise.all([fetchReviews(), fetchReviewStats()])
+    selectedOrderCode.value = ''
+
+    await Promise.all([
+      fetchReviews(),
+      fetchEligibleOrders(customerCode.value, book.value?.MASACH)
+    ])
   } catch (error) {
     console.error('Error deleting review:', error)
     ElNotification({
@@ -943,9 +1275,17 @@ const deleteUserReview = async () => {
 onMounted(async () => {
   await fetchBookDetail()
   if (book.value) {
-    await Promise.all([fetchReviews(), fetchReviewStats()])
+    await fetchReviews()
   }
 })
+
+watch(
+  () => [customerCode.value, book.value?.MASACH],
+  async ([code, bookCode]) => {
+    await fetchEligibleOrders(code, bookCode)
+  },
+  { immediate: true }
+)
 
 watch(
   () => route.params.code ?? route.params.id,
@@ -954,7 +1294,7 @@ watch(
 
     await fetchBookDetail(newCode)
     if (book.value) {
-      await Promise.all([fetchReviews(), fetchReviewStats()])
+      await fetchReviews()
     } else {
       reviews.value = []
       reviewStats.value = { ...defaultReviewStats }
@@ -1642,6 +1982,13 @@ watch(
   justify-content: center;
   color: #d17057;
   font-size: 32px;
+}
+
+.reviewer-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .reviewer-name {
