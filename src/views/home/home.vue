@@ -159,12 +159,35 @@
       <div class="title-area text-center animation-style1 title-anime">
         <h2 class="sec-title title-anime__title">Top Categories</h2>
       </div>
+
+      <div class="book-search-bar">
+        <form class="book-search-form" @submit.prevent>
+          <i class="fas fa-search search-icon"></i>
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="Tìm sách theo tên, tác giả hoặc mô tả..."
+            aria-label="Tìm kiếm sách"
+          >
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="clear-btn"
+            @click="clearSearch"
+            aria-label="Xóa từ khóa tìm kiếm"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+        </form>
+        <p v-if="searchQuery" class="search-meta">Đang tìm: <span>{{ searchQuery }}</span></p>
+      </div>
       
       <!-- Category Grid Component -->
       <Category @category-selected="handleCategorySelected" />
 
       <!-- book-list -->
-      <BookList :selectedCategory="selectedCategoryId" />
+      <BookList :selected-category="selectedCategoryId" :search-query="searchQuery" />
     </div>
   </section>
   <!-- Top Categories End -->
@@ -514,6 +537,7 @@ const router = useRouter();
 const cartPreview = ref([]);
 const showCartPreview = ref(false);
 const selectedCategoryId = ref(null);
+const searchQuery = ref('');
 const wishlistIds = ref(getWishlistIds());
 const topBooksWishlistIds = ref(new Set());
 
@@ -637,6 +661,10 @@ function viewAllBooks() {
   } catch (e) {
     console.error('Error in viewAllBooks:', e)
   }
+}
+
+function clearSearch() {
+  searchQuery.value = ''
 }
 
 // Khi load trang -> gọi API
@@ -785,6 +813,77 @@ function formatPrice(price) {
 
 .product-content .product-title {
   min-height: 42px; /* keep titles from shifting layout */
+}
+
+.book-search-bar {
+  margin: 30px auto 20px;
+  max-width: 640px;
+  text-align: center;
+}
+
+.book-search-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 2px solid #ffe0d5;
+  border-radius: 999px;
+  padding: 6px 16px;
+  box-shadow: 0 6px 18px rgba(209, 112, 87, 0.15);
+  transition: border-color 0.2s ease;
+}
+
+.book-search-form:focus-within {
+  border-color: #d17057;
+}
+
+.book-search-form .search-icon {
+  color: #d17057;
+  font-size: 16px;
+  margin-right: 12px;
+}
+
+.book-search-form .search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  padding: 8px 0;
+  background: transparent;
+  color: #2c3e50;
+}
+
+.book-search-form .search-input::placeholder {
+  color: #a8b0b8;
+}
+
+.book-search-form .clear-btn {
+  border: none;
+  background: transparent;
+  color: #d17057;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-search-form .clear-btn:hover {
+  color: #b85d47;
+}
+
+.book-search-meta,
+.search-meta {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+.book-search-meta span,
+.search-meta span {
+  font-weight: 600;
+  color: #d17057;
 }
 
 /* Cart preview dropdown */

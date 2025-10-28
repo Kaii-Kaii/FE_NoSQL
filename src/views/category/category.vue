@@ -1,7 +1,7 @@
 <template>
   <div class="row g-4 mb-20 filter-menu-active">
-    <!-- Debug info -->
-    <div v-if="categories.length === 0" class="col-12 text-center">
+    <!-- Loading & empty states -->
+    <div v-if="isLoading" class="col-12 text-center">
       <p class="text-muted">Đang tải danh mục...</p>
     </div>
     
@@ -29,6 +29,7 @@
     >
       <div 
         class="categorie-style1 wow animate__fadeInUp" 
+        :class="{ active: isTopCategoryActive(t) }"
         data-wow-delay="0.22s"
         @click="selectTopCategory(t)"
         style="cursor: pointer;"
@@ -49,7 +50,7 @@
     >
       <div 
         class="categorie-style1 wow animate__fadeInUp" 
-        :class="{ active: selectedCategory === category.MADANHMUC }"
+        :class="{ active: isCategoryActive(category.MADANHMUC) }"
         @click="selectCategory(category)"
         data-wow-delay="0.30s"
       >
@@ -72,11 +73,40 @@ import { getTopCategories } from '@/api/book'
 const categories = ref([])
 const selectedCategory = ref(null)
 const topCategories = ref([])
+const isLoading = ref(true)
+
+const emit = defineEmits(['category-selected'])
+
+const toCodeString = (value) => {
+  if (value === undefined || value === null) return null
+  const str = String(value).trim()
+  return str.length ? str : null
+}
+
+const toCompareKey = (value) => {
+  const str = toCodeString(value)
+  return str ? str.toLowerCase() : ''
+}
+
+const isCategoryActive = (code) => {
+  return selectedCategory.value !== null && selectedCategory.value === toCodeString(code)
+}
+
+const isTopCategoryActive = (top) => {
+  const code = resolveTopCategoryCode(top)
+  if (code === null) return false
+  if (selectedCategory.value === null) return false
+  return selectedCategory.value === code
+}
 
 // Lấy danh sách categories từ API
 const fetchCategories = async () => {
+  const hadCategories = categories.value.length > 0
+  if (!hadCategories) {
+    isLoading.value = true
+  }
   try {
-    const response = await getCategory()
+  const response = await getCategory()
     
     console.log('Categories API Response:', response)
 
@@ -97,7 +127,8 @@ const fetchCategories = async () => {
     console.log('Categories count:', categories.value.length)
   } catch (error) {
     console.error('Error fetching categories:', error)
-    categories.value = []
+    // Keep existing categories so UI doesn't blank out
+    // categories.value = []
   }
 
   // Lấy top categories (analytics) — hiển thị 5 loại sau ô "Tất cả"
@@ -113,7 +144,10 @@ const fetchCategories = async () => {
     }
   } catch (err) {
     console.warn('Unable to load top categories:', err)
-    topCategories.value = []
+    // keep previous top categories when request fails
+  }
+  if (!hadCategories || categories.value.length) {
+    isLoading.value = false
   }
 }
 
@@ -172,45 +206,19 @@ const handleImageError = (e) => {
 
 // Xử lý khi click vào category
 const selectCategory = (category) => {
-  selectedCategory.value = category.MADANHMUC
+  const code = toCodeString(category.MADANHMUC)
+  selectedCategory.value = code
   console.log('Selected category:', category)
   
   // Emit event với MADANHMUC để component cha có thể lọc sách
-  emit('category-selected', category.MADANHMUC)
+  emit('category-selected', code)
 }
 
 // Xử lý khi click vào top-category (analytics)
 const selectTopCategory = (top) => {
-  // Nếu backend trả categoryCode, dùng mã đó trực tiếp
-  if (top?.categoryCode) {
-    selectedCategory.value = top.categoryCode
-    emit('category-selected', top.categoryCode)
-    return
-  }
-
-  // Fallback: cố gắng map theo tên giống trước
-  try {
-    const name = (top.categoryName || top.category || '').toString().trim().toLowerCase()
-    // exact match first
-    let match = categories.value.find(c => (c.TENDANHMUC || '').toString().trim().toLowerCase() === name)
-    if (!match) {
-      match = categories.value.find(c => {
-        const a = (c.TENDANHMUC || '').toString().trim().toLowerCase()
-        return a.includes(name) || name.includes(a)
-      })
-    }
-    if (match) {
-      selectedCategory.value = match.MADANHMUC
-      emit('category-selected', match.MADANHMUC)
-      return
-    }
-  } catch (e) {
-    console.warn('Error matching top category to categories list', e)
-  }
-
-  // Nếu không map được, emit tên để parent xử lý tùy ý
-  selectedCategory.value = top.categoryName || top.category
-  emit('category-selected', top.categoryName || top.category)
+  const resolved = resolveTopCategoryCode(top)
+  selectedCategory.value = resolved
+  emit('category-selected', resolved)
 }
 
 // Xử lý khi click "Tất cả" - hiển thị tất cả sách
@@ -222,8 +230,20 @@ const selectAllCategories = () => {
   emit('category-selected', null)
 }
 
-// Emit để gửi event lên component cha
-const emit = defineEmits(['category-selected'])
+function resolveTopCategoryCode(top) {
+  if (!top) return null
+  const directCode = toCodeString(top.categoryCode ?? top.code ?? top.CategoryCode)
+  if (directCode) return directCode
+
+  const topNameKey = toCompareKey(top.categoryName ?? top.category ?? top.name)
+  if (topNameKey) {
+    const match = categories.value.find((c) => toCompareKey(c.TENDANHMUC) === topNameKey)
+    if (match) return toCodeString(match.MADANHMUC)
+  }
+
+  const fallback = toCodeString(top.categoryName ?? top.category ?? top.name)
+  return fallback
+}
 
 onMounted(() => {
   console.log('CategoryGrid mounted, fetching categories...')

@@ -28,11 +28,28 @@ export async function getOrderByCode(orderCode) {
 
 // Lấy danh sách đơn hàng cho trang quản trị
 export async function getAdminOrders(params = {}) {
-  const { page = 1, pageSize = 100, status } = params
+  const {
+    page = 1,
+    pageSize = 100,
+    status,
+    fromDate,
+    toDate,
+    customerCode,
+    keyword
+  } = params
   const query = { page, pageSize }
-  if (status) {
-    query.status = status
+  const optionalParams = {
+    status,
+    fromDate,
+    toDate,
+    customerCode,
+    keyword
   }
+  Object.entries(optionalParams).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      query[key] = value
+    }
+  })
   return request({
     url: '/Admin/orders',
     method: 'get',
