@@ -14,13 +14,76 @@ import * as echarts from 'echarts'
 const props = defineProps({
   title: { type: String, default: '' },
   points: { type: Array, default: () => [] },
+  series: { type: Array, default: () => [] },
   xKey: { type: String, default: 'day' },
   yKey: { type: String, default: 'total' },
-  height: { type: String, default: '320px' }
+  height: { type: String, default: '320px' },
+  colors: { type: Array, default: () => [] },
+  xAxisName: { type: String, default: '' },
+  yAxisName: { type: String, default: '' },
+  tooltipFormatter: { type: Function, default: null }
 })
+
+const emit = defineEmits(['point-click'])
 
 const chartRef = ref(null)
 let chart = null
+let seriesMeta = []
+let currentXData = []
+
+const resizeHandler = () => {
+  chart?.resize?.()
+}
+
+const pickValue = (point, candidateKeys = []) => {
+  if (!point) return undefined
+  for (const key of candidateKeys) {
+    if (point[key] !== undefined && point[key] !== null) {
+      return point[key]
+    }
+  }
+  return undefined
+}
+
+const convertAxisValue = (value) => {
+  if (value === undefined || value === null) return value
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const numeric = Number(value)
+  if (!Number.isNaN(numeric)) return numeric
+  return value
+}
+
+const sortAxisValues = (values) => {
+  if (!values.length) return values
+  const numeric = values.every((val) => typeof val === 'number' && Number.isFinite(val))
+  if (numeric) {
+    return [...values].sort((a, b) => a - b)
+  }
+  const dateLike = values.every((val) => {
+    if (typeof val !== 'string') return false
+    const parsed = new Date(val)
+    return !Number.isNaN(parsed.getTime())
+  })
+  if (dateLike) {
+    return [...values].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+  }
+  return values
+}
+
+const defaultTooltipFormatter = (params) => {
+  if (!Array.isArray(params) || !params.length) return ''
+  const [first] = params
+  const axisLabel = first.axisValueLabel ?? first.axisValue ?? ''
+  const lines = [axisLabel]
+  params.forEach((item) => {
+    const rawValue = item.data ?? item.value
+    const displayValue = typeof rawValue === 'number'
+      ? rawValue.toLocaleString()
+      : (Number(rawValue)?.toLocaleString?.() ?? rawValue)
+    lines.push(`${item.marker || ''}${item.seriesName}: ${displayValue}`)
+  })
+  return lines.join('<br/>')
+}
 
 const init = () => {
   if (!chartRef.value) return
@@ -28,62 +91,188 @@ const init = () => {
   render()
 }
 
+const handleChartClick = (params) => {
+  if (!params || params.componentType !== 'series') return
+  const seriesIndex = params.seriesIndex ?? 0
+  const meta = Array.isArray(seriesMeta) ? seriesMeta[seriesIndex] : undefined
+  const xValueFromAxis = params.axisValue ?? params.axisValueLabel ?? currentXData[params.dataIndex]
+  const rawValue = typeof params.value === 'number' ? params.value : params.data
+  let numericValue = Number(rawValue)
+  if (Number.isNaN(numericValue)) {
+    numericValue = Number(params?.data?.value ?? params?.data?.y ?? params?.data?.total ?? 0)
+  }
+  emit('point-click', {
+    seriesName: params.seriesName,
+    seriesIndex,
+    meta,
+    metaType: meta?.metaType ?? meta?.type ?? meta?.category ?? null,
+    xValue: xValueFromAxis,
+    value: Number.isFinite(numericValue) ? numericValue : 0,
+    raw: params
+  })
+}
+
+const registerEvents = () => {
+  if (!chart) return
+  chart.off('click', handleChartClick)
+  chart.on('click', handleChartClick)
+}
+
 const render = () => {
   if (!chart) return
-  const xData = (props.points || []).map((p) => p[props.xKey])
-  const yData = (props.points || []).map((p) => Number(p[props.yKey] ?? 0))
 
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params) => {
-        if (!params || !params.length) return ''
-        const p = params[0]
-        return `${p.axisValue}<br/>${p.seriesName}: ${p.data?.toLocaleString?.() ?? p.data}`
+  const hasMultiSeries = Array.isArray(props.series) && props.series.length > 0
+  const xKey = props.xKey
+  const yKey = props.yKey
+  const xAxisLabel = props.xAxisName || 'Ngày'
+  const yAxisLabel = props.yAxisName || (yKey === 'total'
+    ? 'Tổng (₫)'
+    : (yKey === 'quantity' ? 'Số lượng' : yKey))
+
+  let xData = []
+  let seriesOption = []
+  let legendData = []
+
+  if (hasMultiSeries) {
+    seriesMeta = props.series.map((seriesItem) => seriesItem || {})
+    const allXValues = []
+    const seenTokens = new Set()
+
+    props.series.forEach((seriesItem, index) => {
+      if (!seriesItem) return
+      const dataSource = Array.isArray(seriesItem.data)
+        ? seriesItem.data
+        : (Array.isArray(seriesItem.points) ? seriesItem.points : [])
+      const itemXKey = seriesItem.xKey || xKey
+      const itemYKey = seriesItem.yKey || yKey
+      const seriesName = seriesItem.name || `Series ${index + 1}`
+      const valueMap = new Map()
+
+      dataSource.forEach((point) => {
+        const rawX = pickValue(point, [itemXKey, 'day', 'date', 'label', 'x'])
+        const axisValue = convertAxisValue(rawX)
+        if (axisValue === undefined || axisValue === null || axisValue === '') return
+        const token = String(axisValue)
+        if (!seenTokens.has(token)) {
+          seenTokens.add(token)
+          allXValues.push(axisValue)
+        }
+        const rawY = pickValue(point, [itemYKey, 'total', 'value', 'amount', 'y'])
+        const numericY = Number(rawY)
+        valueMap.set(token, Number.isFinite(numericY) ? numericY : 0)
+      })
+
+      legendData.push(seriesName)
+
+      seriesOption.push({
+        name: seriesName,
+        type: seriesItem.type || 'line',
+        smooth: seriesItem.smooth !== undefined ? seriesItem.smooth : true,
+        symbol: seriesItem.symbol || 'circle',
+        symbolSize: seriesItem.symbolSize || 6,
+        areaStyle: seriesItem.area === false ? undefined : { opacity: seriesItem.areaOpacity ?? 0.18 },
+        lineStyle: seriesItem.lineStyle || { width: 2 },
+        emphasis: { focus: 'series' },
+        data: [],
+        __valueMap: valueMap
+      })
+    })
+
+    xData = sortAxisValues(allXValues)
+
+    seriesOption = seriesOption.map((item) => {
+      const mappedData = xData.map((x) => item.__valueMap.get(String(x)) ?? 0)
+      return {
+        ...item,
+        data: mappedData
       }
-    },
-    xAxis: {
-      type: 'category',
-      data: xData,
-      boundaryGap: false,
-      name: 'Ngày'
-    },
-    yAxis: {
-      type: 'value',
-      name: props.yKey === 'total' ? 'Tổng (₫)' : (props.yKey === 'quantity' ? 'Số lượng' : props.yKey)
-    },
-    series: [
+    })
+  } else {
+    seriesMeta = []
+    xData = (props.points || []).map((p) => p[xKey])
+    const yData = (props.points || []).map((p) => Number(p[yKey] ?? 0))
+    seriesOption = [
       {
-        name: props.title || props.yKey,
+        name: props.title || yKey,
         type: 'line',
         data: yData,
         smooth: true,
         symbol: 'circle',
         symbolSize: 6,
-        areaStyle: {}
+        areaStyle: { opacity: 0.18 }
       }
-    ],
-    grid: { left: '6%', right: '4%', bottom: '8%', top: '10%' }
+    ]
   }
 
-  chart.setOption(option)
+  const option = {
+    color: Array.isArray(props.colors) && props.colors.length ? props.colors : undefined,
+    tooltip: {
+      trigger: 'axis',
+      formatter: props.tooltipFormatter || defaultTooltipFormatter
+    },
+    legend: hasMultiSeries ? { data: legendData, top: 32 } : undefined,
+    xAxis: {
+      type: 'category',
+      data: xData,
+      boundaryGap: false,
+      name: xAxisLabel
+    },
+    yAxis: {
+      type: 'value',
+      name: yAxisLabel
+    },
+    series: seriesOption,
+    grid: { left: '6%', right: '4%', bottom: '8%', top: hasMultiSeries ? '18%' : '10%' }
+  }
+
+  // Remove helper maps before setting option
+  if (hasMultiSeries) {
+    option.series = option.series.map((item) => {
+      const { __valueMap, ...rest } = item
+      return rest
+    })
+  }
+
+  chart.setOption(option, true)
+  chart.resize()
+  currentXData = Array.isArray(xData) ? xData : []
+  registerEvents()
 }
 
 onMounted(() => {
   init()
-  window.addEventListener('resize', () => chart?.resize())
+  window.addEventListener('resize', resizeHandler)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', () => chart?.resize())
+  chart?.off?.('click', handleChartClick)
+  window.removeEventListener('resize', resizeHandler)
   try {
     chart?.dispose()
-  } catch (e) {}
+  } finally {
+    chart = null
+    seriesMeta = []
+    currentXData = []
+  }
 })
 
-watch(() => props.points, () => {
-  render()
-})
+watch(
+  [
+    () => props.points,
+    () => props.series,
+    () => props.title,
+    () => props.xKey,
+    () => props.yKey,
+    () => props.colors,
+    () => props.xAxisName,
+    () => props.yAxisName,
+    () => props.tooltipFormatter
+  ],
+  () => {
+    render()
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>

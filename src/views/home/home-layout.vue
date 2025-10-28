@@ -1,5 +1,5 @@
 <template>
-    <HomeHeader class="py-5"></HomeHeader>
+    <HomeHeader></HomeHeader>
     <router-view> </router-view>
     <HomeFooter ></HomeFooter>
 </template>

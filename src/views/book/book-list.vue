@@ -126,6 +126,10 @@ const props = defineProps({
   selectedCategory: {
     type: [String, Number],
     default: null
+  },
+  searchQuery: {
+    type: String,
+    default: ''
   }
 })
 
@@ -136,14 +140,25 @@ const currentPage = ref(1) // Trang hiện tại cho phân trang frontend
 const perPage = 12 // Số sách mỗi trang (6 sách x 2 hàng)
 
 // Computed: Filter sách theo category (GIỐNG NHƯ CŨ)
+const normalizedSearch = computed(() => String(props.searchQuery || '').trim().toLowerCase())
+
 const books = computed(() => {
-  // Nếu không có category được chọn, hiển thị tất cả
-  if (!props.selectedCategory) {
-    return allBooks.value
+  let filtered = allBooks.value
+
+  if (props.selectedCategory) {
+    filtered = filtered.filter(book => book.MADANHMUC === props.selectedCategory)
   }
-  
-  // Filter sách theo MADANHMUC
-  return allBooks.value.filter(book => book.MADANHMUC === props.selectedCategory)
+
+  const keyword = normalizedSearch.value
+  if (!keyword) return filtered
+
+  return filtered.filter((book) => {
+    const name = String(book.TENSACH || '').toLowerCase()
+    const author = String(book.TACGIA || '').toLowerCase()
+    const description = String(book.MOTA || '').toLowerCase()
+    const categoryName = String(book.category?.name || book.category?.Name || '').toLowerCase()
+    return name.includes(keyword) || author.includes(keyword) || description.includes(keyword) || categoryName.includes(keyword)
+  })
 })
 
 // Computed: Tổng số trang dựa trên kết quả đã filter
@@ -229,9 +244,16 @@ const fetchBooks = async () => {
     }
     
     // Normalize field names: từ API response structure
+    const normalizeCode = (value) => {
+      if (value === null || value === undefined) return null
+      const str = String(value).trim()
+      return str.length ? str : null
+    }
+
     allBooks.value = booksData.map(book => {
       const fallbackStock = book.inStock ?? book.SOLUONG
       const rawId = book.code || book.MASACH || book._id || book.id
+      const resolvedCategoryCode = book.category?.code || book.categoryCode || book.MADANHMUC || book.category?.Code
       return {
         ...book,
         MASACH: rawId != null ? String(rawId) : null,
@@ -241,7 +263,7 @@ const fetchBooks = async () => {
         GIAGOC: book.originalPrice ?? book.GIAGOC,
         URLSACH: book.coverUrl || book.image || book.URLSACH || book.ANHSACH,
         ANHSACH: book.coverUrl || book.image || book.ANHSACH || book.URLSACH,
-        MADANHMUC: book.category?.code || book.categoryCode || book.MADANHMUC,
+        MADANHMUC: normalizeCode(resolvedCategoryCode),
         category: book.category || book.categoryData || null,
         MOTA: book.description || book.MOTA,
         ISHOT: book.isHot || book.ISHOT || false,
@@ -276,6 +298,10 @@ watch(() => props.selectedCategory, (newCategoryId) => {
   // Fetch lại data khi category thay đổi
   fetchBooks()
 }, { immediate: false })
+
+watch(() => props.searchQuery, () => {
+  currentPage.value = 1
+})
 
 // Format giá tiền
 const formatPrice = (price) => {

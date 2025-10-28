@@ -1,16 +1,6 @@
 <template>
     
   <!--==============================
-    Popup Search Box
-    ============================== -->
-  <div class="popup-search-box d-none d-lg-block  ">
-    <button class="searchClose"><i class="fal fa-times"></i></button>
-    <form action="#">
-      <input type="text" class="border-theme" placeholder="What are you looking for">
-      <button type="submit"><i class="fal fa-search"></i></button>
-    </form>
-  </div>
-  <!--==============================
         Header Area
     ==============================-->
   <header class="vs-header header-layout1 style2">
@@ -24,25 +14,7 @@
           </div>
           <div class="col-auto">
             <div class="header-inner">
-              <form class="header-search">
-                <button class="searchBoxTggler" aria-label="search-button">
-                  <i class="fa-solid fa-magnifying-glass"></i>
-                </button>
-                <div class="d-flex align-items-center">
-                  <div class="dropdown">
-                    <div class="dropdown-toggle" id="dropdownMenuButton1" data-bs-toggle="dropdown" role="button"
-                      aria-expanded="false">
-                      Categories
-                    </div>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                      <li><a class="dropdown-item" href="#">Action</a></li>
-                      <li><a class="dropdown-item" href="#">Another action</a></li>
-                      <li><a class="dropdown-item" href="#">Something else here</a></li>
-                    </ul>
-                  </div>
-                  <input type="text" placeholder="Search yourProduct’s.....">
-                </div>
-              </form>
+              <div class="header-search-placeholder"></div>
               <div class="header-buttons">
                 <router-link to="/wishlist" class="vs-icon wishlist"><i class="fal fa-heart"></i></router-link>
                 <div class="header-info">
@@ -438,6 +410,18 @@ function clearAll() {
 </script>
 
 <style scoped>
+/* layout adjustments now that search input is moved elsewhere */
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.header-search-placeholder {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* Quantity controls inside cart preview */
 .qty-control {
   display: inline-flex;

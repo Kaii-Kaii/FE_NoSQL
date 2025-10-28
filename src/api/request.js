@@ -33,6 +33,16 @@ request.interceptors.request.use(
           // Surface the role for lightweight role-based filters like RoleAuthorizeAttribute
           config.headers['X-Role'] = parsedUser.role
         }
+        if (parsedUser?.code) {
+          config.headers['X-User-Code'] = parsedUser.code
+          config.headers['X-Admin-Code'] = parsedUser.code
+        }
+        if (parsedUser?.username) {
+          config.headers['X-User-Name'] = parsedUser.username
+          config.headers['X-Username'] = parsedUser.username
+        } else if (parsedUser?.email) {
+          config.headers['X-Username'] = parsedUser.email
+        }
       }
     } catch (err) {
       console.warn('Unable to parse stored user for role header', err)
