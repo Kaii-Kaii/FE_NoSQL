@@ -367,7 +367,7 @@ onMounted(() => {
   transform: translateY(-50%);
   width: 6px;
   height: 40px;
-  background: linear-gradient(180deg, #d17057 0%, #e89b87 100%);
+  background: linear-gradient(180deg, #f093fb 0%, #f5576c 100%);
   border-radius: 3px;
 }
 
@@ -376,7 +376,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   text-decoration: none;
   border-radius: 50px;
@@ -511,12 +511,12 @@ onMounted(() => {
 }
 
 .badge-hot {
-  background: linear-gradient(135deg, rgba(255, 107, 53, 0.95) 0%, rgba(238, 90, 36, 0.95) 100%);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
 .badge-discount {
-  background: linear-gradient(135deg, rgba(243, 156, 18, 0.95) 0%, rgba(230, 126, 34, 0.95) 100%);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
@@ -558,12 +558,12 @@ onMounted(() => {
 }
 
 .wishlist-btn:hover {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
 .wishlist-btn.active {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   animation: heartBeat 0.5s;
 }
@@ -625,7 +625,7 @@ onMounted(() => {
 .price-current {
   font-size: 16px;
   font-weight: 700;
-  color: #d17057;
+  color: #f5576c;
   line-height: 1;
 }
 
@@ -648,7 +648,7 @@ onMounted(() => {
 
 .book-author i {
   font-size: 11px;
-  color: #d17057;
+  color: #f5576c;
 }
 
 /* Title */
@@ -672,7 +672,7 @@ onMounted(() => {
 }
 
 .book-title a:hover {
-  color: #d17057;
+  color: #f5576c;
 }
 
 /* Responsive Adjustments */

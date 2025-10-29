@@ -607,12 +607,12 @@ onMounted(() => {
 }
 
 .wishlist-btn:hover {
-  background: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
 .wishlist-btn.active {
-  background: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   animation: heartBeat 0.6s ease-in-out;
 }
@@ -766,18 +766,18 @@ onMounted(() => {
 }
 
 .pagination-list a:hover:not(.disabled):not(.active) {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(209, 112, 87, 0.3);
+  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
 }
 
 .pagination-list a.active {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
-  border-color: #d17057;
+  border-color: #f5576c;
   cursor: default;
-  box-shadow: 0 4px 12px rgba(209, 112, 87, 0.4);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
 }
 
 .pagination-list a.disabled {

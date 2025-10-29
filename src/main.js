@@ -6,6 +6,9 @@ import router from '@/router/index.js'
 import store from '@/store/index.js'
 import App from './App.vue'
 
+// Import Orange/Pink Theme (Override default colors)
+import '@/assets/css/theme-orange.css'
+
 const app = createApp(App)
 
 app.use(ElementPlus)

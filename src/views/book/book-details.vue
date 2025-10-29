@@ -14,17 +14,7 @@
       <div class="container py-5" v-else-if="book">
         <!-- Breadcrumb -->
         <nav aria-label="breadcrumb" class="mb-4">
-          <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-              <router-link to="/home">Trang chủ</router-link>
-            </li>
-            <li class="breadcrumb-item">
-              <router-link to="/home/books">Sách</router-link>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">
-              {{ book.TENSACH }}
-            </li>
-          </ol>
+          
         </nav>
 
         <!-- Book Details -->
@@ -1322,13 +1312,13 @@ watch(
 }
 
 .breadcrumb-item a {
-  color: #d17057;
+  color: #f5576c;
   text-decoration: none;
   transition: color 0.3s;
 }
 
 .breadcrumb-item a:hover {
-  color: #b85d47;
+  color: #f093fb;
 }
 
 .breadcrumb-item.active {
@@ -1363,7 +1353,7 @@ watch(
   border-radius: 50%;
   border: none;
   background-color: white;
-  color: #d17057;
+  color: #f5576c;
   font-size: 22px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1376,18 +1366,18 @@ watch(
 
 .btn-wishlist-top:hover {
   transform: scale(1.15);
-  box-shadow: 0 6px 20px rgba(209, 112, 87, 0.4);
-  background-color: #fff5f3;
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+  background: linear-gradient(135deg, rgba(240, 147, 251, 0.1) 0%, rgba(245, 87, 108, 0.1) 100%);
 }
 
 .btn-wishlist-top.active {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   animation: heartBeat 0.5s;
 }
 
 .btn-wishlist-top.active:hover {
-  background-color: #b85d47;
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
 }
 
 .book-badges {
@@ -1432,12 +1422,12 @@ watch(
 
 .book-category {
   display: inline-block;
-  color: #d17057;
+  color: #f5576c;
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 15px;
   padding: 6px 15px;
-  background-color: rgba(209, 112, 87, 0.1);
+  background: linear-gradient(135deg, rgba(240, 147, 251, 0.15) 0%, rgba(245, 87, 108, 0.15) 100%);
   border-radius: 20px;
 }
 
@@ -1461,7 +1451,7 @@ watch(
 
 .book-author i {
   margin-right: 8px;
-  color: #d17057;
+  color: #f5576c;
 }
 
 .book-author strong {
@@ -1506,7 +1496,10 @@ watch(
 .current-price {
   font-size: 36px;
   font-weight: 700;
-  color: #d17057;
+  color: #f5576c;
+  display: inline-block;
+  padding: 2px 0;
+  line-height: 1.2;
 }
 
 .original-price {
@@ -1580,7 +1573,7 @@ watch(
 }
 
 .qty-btn:hover {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
@@ -1621,16 +1614,16 @@ watch(
 }
 
 .btn-add-to-cart {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   flex: 1;
   justify-content: center;
 }
 
 .btn-add-to-cart:hover {
-  background-color: #b85d47;
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(209, 112, 87, 0.4);
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.5);
 }
 
 .btn-buy-now {
@@ -1675,7 +1668,7 @@ watch(
 }
 
 .meta-item h5 i {
-  color: #d17057;
+  color: #f5576c;
 }
 
 .meta-item p {
@@ -1707,14 +1700,15 @@ watch(
 }
 
 .nav-tabs .nav-link:hover {
-  color: #d17057;
-  border-bottom: 3px solid #d17057;
+  color: #f5576c;
+  border-bottom: 3px solid #f5576c;
 }
 
 .nav-tabs .nav-link.active {
-  color: #d17057;
-  border-bottom: 3px solid #d17057;
-  background: transparent;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border-bottom: 3px solid #f5576c;
+  border-radius: 8px 8px 0 0;
 }
 
 .tab-content-wrapper {
@@ -1752,7 +1746,7 @@ watch(
 .rating-number {
   font-size: 64px;
   font-weight: 700;
-  color: #d17057;
+  color: #f5576c;
   margin-bottom: 10px;
 }
 
