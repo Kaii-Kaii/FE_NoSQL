@@ -42,7 +42,19 @@
               <header class="order-head">
                 <div>
                   <div class="order-code">Mã đơn: {{ order.code }}</div>
-                  <div class="order-date">{{ formatDate(order.createdAt) }}</div>
+                  <div class="order-date">Đặt lúc: {{ formatDate(order.createdAt) }}</div>
+                  <div
+                    v-if="order.status === 'HoanThanh' && order.completedAt"
+                    class="order-date order-date--completed"
+                  >
+                    Hoàn thành lúc: {{ formatDate(order.completedAt) }}
+                  </div>
+                  <div
+                    v-else-if="order.status === 'DaHuy' && order.completedAt"
+                    class="order-date order-date--cancelled"
+                  >
+                    Hủy lúc: {{ formatDate(order.completedAt) }}
+                  </div>
                 </div>
                 <span class="order-status" :class="statusClass(order.status)">{{ order.statusLabel || statusLabel(order.status) }}</span>
               </header>
@@ -53,6 +65,10 @@
                   <span class="summary-line method">Thanh toán: {{ order.paymentMethodLabel }}</span>
                 </div>
                 <span class="order-total">{{ formatPrice(order.total) }}</span>
+              </div>
+
+              <div v-if="order.status === 'DaHuy' && order.cancelReason" class="order-cancel-reason">
+                Lý do hủy: {{ order.cancelReason }}
               </div>
 
               <transition name="fade">
@@ -104,25 +120,65 @@
                 >
                   {{ isConfirming(order.code) ? 'Đang xác nhận...' : 'Xác nhận đã nhận hàng' }}
                 </button>
+                <button
+                  v-if="order.status === 'DaDatHang'"
+                  type="button"
+                  class="cancel-btn"
+                  :disabled="isCancelling(order.code)"
+                  @click="openCancelDialog(order)"
+                >
+                  {{ isCancelling(order.code) ? 'Đang hủy...' : 'Hủy đơn' }}
+                </button>
               </footer>
             </article>
           </div>
 
           <div v-else key="empty" class="order-state">
             <i class="fas fa-box-open"></i>
-            <p>Không có đơn hàng ở trạng thái "{{ activeStatus }}".</p>
+            <p>Không có đơn hàng ở trạng thái "{{ statusLabel(activeStatus) }}".</p>
           </div>
         </transition-group>
       </div>
     </div>
   </div>
+
+  <el-dialog
+    v-model="cancelDialog.visible"
+    title="Hủy đơn hàng"
+    width="420px"
+    :close-on-click-modal="false"
+    :close-on-press-escape="!cancelDialog.submitting"
+    class="cancel-dialog"
+    @close="closeCancelDialog"
+  >
+    <div class="cancel-dialog__body">
+      <p class="cancel-dialog__summary">
+        Bạn đang hủy đơn <strong>{{ cancelDialog.order?.code }}</strong>.
+      </p>
+      <el-input
+        v-model="cancelDialog.reason"
+        type="textarea"
+        :rows="4"
+        maxlength="200"
+        show-word-limit
+        placeholder="Nhập lý do hủy (ví dụ: Đặt nhầm sản phẩm)"
+        :disabled="cancelDialog.submitting"
+      />
+      <p v-if="cancelDialog.error" class="cancel-dialog__error">{{ cancelDialog.error }}</p>
+      <p class="cancel-dialog__hint">Đơn chỉ có thể bị hủy khi vẫn ở trạng thái "Đã đặt hàng".</p>
+    </div>
+    <template #footer>
+      <el-button @click="closeCancelDialog" :disabled="cancelDialog.submitting">Đóng</el-button>
+      <el-button type="danger" @click="submitCancel" :loading="cancelDialog.submitting">Xác nhận hủy</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getOrdersByCustomer, confirmOrder as confirmOrderApi } from '@/api/order'
+import { getOrdersByCustomer, confirmOrder as confirmOrderApi, cancelOrder as cancelOrderApi } from '@/api/order'
 import { on as onEvent, emit as emitEvent } from '@/utils/eventBus'
 
 const props = defineProps({
@@ -139,13 +195,15 @@ const props = defineProps({
 const statusTabs = [
   { key: 'DaDatHang', label: 'Đã đặt hàng' },
   { key: 'DangGiao', label: 'Đang giao' },
-  { key: 'HoanThanh', label: 'Hoàn thành' }
+  { key: 'HoanThanh', label: 'Hoàn thành' },
+  { key: 'DaHuy', label: 'Đã hủy' }
 ]
 
 const STATUS_LABEL_MAP = {
   DaDatHang: 'Đã đặt hàng',
   DangGiao: 'Đang giao',
-  HoanThanh: 'Hoàn thành'
+  HoanThanh: 'Hoàn thành',
+  DaHuy: 'Đã hủy'
 }
 
 const loading = ref(false)
@@ -154,6 +212,14 @@ const orders = ref([])
 const activeStatus = ref(statusTabs[0].key)
 const expandedOrders = ref({})
 const confirmingMap = ref({})
+const cancellingMap = ref({})
+const cancelDialog = reactive({
+  visible: false,
+  order: null,
+  reason: '',
+  submitting: false,
+  error: ''
+})
 let pendingRefresh = false
 let disposeOrderEvent = null
 
@@ -187,6 +253,16 @@ const toggleDetails = (code) => {
 }
 
 const isConfirming = (code) => Boolean(confirmingMap.value[code])
+const isCancelling = (code) => Boolean(cancellingMap.value[code])
+
+watch(
+  () => cancelDialog.reason,
+  () => {
+    if (cancelDialog.error) {
+      cancelDialog.error = ''
+    }
+  }
+)
 
 const toKey = (value) =>
   String(value || '')
@@ -200,6 +276,7 @@ const canonicalStatus = (value) => {
   if (!key) return 'DaDatHang'
   if (key.includes('danggiao')) return 'DangGiao'
   if (key.includes('hoanthanh')) return 'HoanThanh'
+  if (key.includes('dahuy') || key.includes('huy')) return 'DaHuy'
   if (key.includes('dadathang')) return 'DaDatHang'
   return 'DaDatHang'
 }
@@ -237,6 +314,8 @@ const interpretPaymentMethod = (value, fallback) => {
 const normalizeOrder = (raw, index) => {
   const items = normalizeItems(raw.items ?? raw.chitiet)
   const createdAt = raw.createdAt ?? raw.ngaylap ?? raw.createdDate ?? ''
+  const completedAt =
+    raw.completedAt ?? raw.completedDate ?? raw.ngayHoanThanh ?? raw.thoigianhoanthanh ?? raw.thoigianhoanThanh ?? ''
   const status = canonicalStatus(raw.status ?? raw.trangthai)
   const total = Number(raw.total ?? raw.tongtien ?? items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0))
   const code = raw.code ?? raw.orderCode ?? raw.mahd ?? raw.id ?? `ORDER-${index + 1}`
@@ -253,7 +332,9 @@ const normalizeOrder = (raw, index) => {
     total,
     items,
     paymentMethod: payment.code,
-    paymentMethodLabel: payment.label
+    paymentMethodLabel: payment.label,
+    completedAt,
+    cancelReason: raw.cancelReason ?? raw.lyDoHuy ?? raw.reason ?? ''
   }
 }
 
@@ -280,6 +361,8 @@ const statusClass = (status) => {
       return 'status-shipping'
     case 'HoanThanh':
       return 'status-completed'
+    case 'DaHuy':
+      return 'status-cancelled'
     default:
       return 'status-default'
   }
@@ -299,8 +382,8 @@ const fetchOrders = async () => {
     const response = await getOrdersByCustomer(props.customerCode)
     const list = Array.isArray(response) ? response : response?.data ?? []
     orders.value = list.map((order, index) => normalizeOrder(order, index)).sort((a, b) => {
-      const dateA = new Date(a.createdAt)
-      const dateB = new Date(b.createdAt)
+      const dateA = new Date(a.completedAt || a.createdAt)
+      const dateB = new Date(b.completedAt || b.createdAt)
       return (dateB.getTime() || 0) - (dateA.getTime() || 0)
     })
     pendingRefresh = false
@@ -321,7 +404,15 @@ const confirmOrderAndUpdate = async (order) => {
     ElMessage.success('Đã xác nhận đơn hàng thành công')
 
     orders.value = orders.value.map((o) =>
-      o.code === order.code ? { ...o, status: 'HoanThanh', statusLabel: statusLabel('HoanThanh') } : o
+      o.code === order.code
+        ? {
+            ...o,
+            status: 'HoanThanh',
+            statusLabel: statusLabel('HoanThanh'),
+            completedAt: new Date().toISOString(),
+            cancelReason: ''
+          }
+        : o
     )
     emitEvent('order-updated', { code: order.code, status: 'HoanThanh' })
   } catch (err) {
@@ -329,6 +420,66 @@ const confirmOrderAndUpdate = async (order) => {
     ElMessage.error(err?.response?.data?.message || err?.message || 'Không thể xác nhận đơn hàng')
   } finally {
     confirmingMap.value = { ...confirmingMap.value, [order.code]: false }
+  }
+}
+
+const openCancelDialog = (order) => {
+  if (!props.customerCode || isCancelling(order.code)) return
+  cancelDialog.order = order
+  cancelDialog.reason = ''
+  cancelDialog.error = ''
+  cancelDialog.visible = true
+}
+
+const closeCancelDialog = () => {
+  if (cancelDialog.submitting) return
+  cancelDialog.visible = false
+  cancelDialog.order = null
+  cancelDialog.reason = ''
+  cancelDialog.error = ''
+}
+
+const submitCancel = async () => {
+  if (!cancelDialog.order || cancelDialog.submitting) return
+  const trimmed = cancelDialog.reason.trim()
+  if (!trimmed) {
+    cancelDialog.error = 'Vui lòng nhập lý do hủy đơn hàng.'
+    return
+  }
+  if (trimmed.length < 5) {
+    cancelDialog.error = 'Lý do nên có ít nhất 5 ký tự để chúng tôi hỗ trợ bạn tốt hơn.'
+    return
+  }
+  cancelDialog.error = ''
+  await cancelOrder(cancelDialog.order, trimmed)
+}
+
+const cancelOrder = async (order, reason) => {
+  const reasonText = String(reason || '').trim()
+  cancellingMap.value = { ...cancellingMap.value, [order.code]: true }
+  cancelDialog.submitting = true
+  try {
+    await cancelOrderApi(props.customerCode, order.code, reasonText)
+    ElMessage.success('Đã hủy đơn hàng thành công')
+    orders.value = orders.value.map((o) =>
+      o.code === order.code
+        ? {
+            ...o,
+            status: 'DaHuy',
+            statusLabel: statusLabel('DaHuy'),
+            cancelReason: reasonText,
+            completedAt: new Date().toISOString()
+          }
+        : o
+    )
+    emitEvent('order-updated', { code: order.code, status: 'DaHuy' })
+    closeCancelDialog()
+  } catch (err) {
+    console.error('cancelOrder error', err)
+    ElMessage.error(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Không thể hủy đơn hàng')
+  } finally {
+    cancellingMap.value = { ...cancellingMap.value, [order.code]: false }
+    cancelDialog.submitting = false
   }
 }
 
@@ -523,6 +674,16 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.order-date--completed {
+  color: #1b7d43;
+  font-weight: 600;
+}
+
+.order-date--cancelled {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .order-status {
   padding: 6px 12px;
   border-radius: 999px;
@@ -545,9 +706,19 @@ onBeforeUnmount(() => {
   color: #1b7d43;
 }
 
+.status-cancelled {
+  background: rgba(248, 113, 113, 0.18);
+  color: #b91c1c;
+}
+
 .order-summary {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #f9fafb;
   font-weight: 600;
   color: #2c3e50;
 }
@@ -572,6 +743,16 @@ onBeforeUnmount(() => {
   color: #d17057;
 }
 
+.order-cancel-reason {
+  margin: 6px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .order-details {
   border-top: 1px dashed #f1d5cb;
   padding-top: 12px;
@@ -594,13 +775,16 @@ onBeforeUnmount(() => {
   color: #b85d47;
 }
 
-.order-actions {
-  display: flex;
-  gap: 12px;
-
 .order-details .actions-cell {
   text-align: right;
   min-width: 110px;
+}
+
+.order-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .review-btn {
@@ -624,9 +808,6 @@ onBeforeUnmount(() => {
   transform: translateY(0);
   box-shadow: none;
 }
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
 
 .link-btn {
   border: none;
@@ -647,7 +828,8 @@ onBeforeUnmount(() => {
   transition: transform 0.15s ease;
 }
 
-.confirm-btn:disabled {
+.confirm-btn:disabled,
+.cancel-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
@@ -655,6 +837,50 @@ onBeforeUnmount(() => {
 
 .confirm-btn:not(:disabled):hover {
   transform: translateY(-1px);
+}
+
+.cancel-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cancel-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.cancel-dialog :deep(.el-dialog__body) {
+  padding-top: 8px;
+}
+
+.cancel-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cancel-dialog__summary {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.cancel-dialog__hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.cancel-dialog__error {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: #dc2626;
 }
 
 .fade-enter-active,

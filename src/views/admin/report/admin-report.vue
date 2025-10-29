@@ -57,7 +57,7 @@
                         <el-table-column prop="total" label="Tổng đơn" width="160">
                             <template #default="scope">{{ formatCurrency(scope.row.total) }}</template>
                         </el-table-column>
-                        <el-table-column prop="createdAtLabel" label="Thời gian" min-width="180" />
+                        <el-table-column prop="completedAtLabel" label="Hoàn thành lúc" min-width="180" />
                     </el-table>
                     <el-table v-else :data="detailRecords" border size="small">
                         <el-table-column prop="code" label="Mã phiếu" width="140" />
@@ -78,7 +78,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import StatsLineChart from '@/components/StatsLineChart.vue'
-import { getDailyRevenue } from '@/api/stats'
 import { fetchImportHistory } from '@/api/inventory'
 import { getAdminOrders } from '@/api/order'
 
@@ -98,6 +97,8 @@ const selectedDay = ref(null)
 
 const IMPORT_PAGE_SIZE = 200
 const MAX_IMPORT_PAGES = 5
+const ORDER_PAGE_SIZE = 200
+const MAX_ORDER_PAGES = 8
 
 const normalizePoints = (points = [], xKey = 'day', yKey = 'total') => {
     if (!Array.isArray(points)) return []
@@ -224,6 +225,24 @@ const aggregateImportExpensesByDay = (records = []) => {
         .map(([day, total]) => ({ day, total: Number(total) }))
 }
 
+const aggregateCompletedOrderRevenueByDay = (records = []) => {
+    const dayBuckets = new Map()
+    records.forEach((record, index) => {
+        const normalized = normalizeOrderSummary(record, index)
+        if (normalized.status !== 'HoanThanh') return
+        const resolvedDate = normalized.completedAt || normalized.createdAt
+        if (!resolvedDate) return
+        const parsed = new Date(resolvedDate)
+        if (Number.isNaN(parsed.getTime())) return
+        const day = parsed.getDate()
+        const amount = Number(normalized.total) || 0
+        dayBuckets.set(day, (dayBuckets.get(day) || 0) + amount)
+    })
+    return Array.from(dayBuckets.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([day, total]) => ({ day, total: Number(total) }))
+}
+
 const fillMonthlySeries = (points = [], totalDays = 31, xKey = 'day', yKey = 'total') => {
     const valueMap = new Map()
     points.forEach((point) => {
@@ -291,6 +310,7 @@ const canonicalStatus = (value) => {
     if (!key) return 'DaDatHang'
     if (key.includes('danggiao')) return 'DangGiao'
     if (key.includes('hoanthanh')) return 'HoanThanh'
+    if (key.includes('dahuy') || key.includes('huy')) return 'DaHuy'
     if (key.includes('dadathang')) return 'DaDatHang'
     return 'DaDatHang'
 }
@@ -298,7 +318,8 @@ const canonicalStatus = (value) => {
 const STATUS_LABEL_MAP = {
     DaDatHang: 'Đã đặt hàng',
     DangGiao: 'Đang giao',
-    HoanThanh: 'Hoàn thành'
+    HoanThanh: 'Hoàn thành',
+    DaHuy: 'Đã hủy'
 }
 
 const formatCurrency = (value) => `${formatCurrencyValue(value)}₫`
@@ -311,6 +332,17 @@ const formatDateTime = (value) => {
         dateStyle: 'medium',
         timeStyle: 'short'
     }).format(date)
+}
+
+const matchesDay = (dateValue, yearValue, monthValue, dayValue) => {
+    if (!dateValue) return false
+    const date = new Date(dateValue)
+    if (Number.isNaN(date.getTime())) return false
+    return (
+        date.getFullYear() === yearValue &&
+        date.getMonth() + 1 === monthValue &&
+        date.getDate() === dayValue
+    )
 }
 
 const buildDayRange = (yr, mn, day) => {
@@ -327,10 +359,13 @@ const buildDayRange = (yr, mn, day) => {
 const normalizeOrderSummary = (raw = {}, index = 0) => {
     const code = raw.code ?? raw.orderCode ?? raw.mahd ?? raw.id ?? `ORDER-${index + 1}`
     const createdAt = raw.createdAt ?? raw.createdDate ?? raw.ngaylap ?? raw.created_time ?? ''
+    const completedAt =
+        raw.completedAt ?? raw.completedDate ?? raw.ngayHoanThanh ?? raw.completed_time ?? raw.thoigianhoanthanh ?? ''
     const customer = raw.customer ?? raw.customerInfo ?? raw.khachhang ?? {}
     const customerName = raw.customerName ?? raw.tenkh ?? customer.fullName ?? customer.name ?? ''
     const total = Number(raw.total ?? raw.tongtien ?? raw.amount ?? 0) || 0
     const status = canonicalStatus(raw.status ?? raw.trangthai)
+    const resolvedCompletedAt = completedAt || createdAt
     return {
         code: String(code),
         customerName,
@@ -338,7 +373,8 @@ const normalizeOrderSummary = (raw = {}, index = 0) => {
         status,
         statusLabel: STATUS_LABEL_MAP[status] ?? status,
         createdAt,
-        createdAtLabel: formatDateTime(createdAt)
+        completedAt: resolvedCompletedAt,
+        completedAtLabel: formatDateTime(resolvedCompletedAt)
     }
 }
 
@@ -412,6 +448,43 @@ const fetchMonthlyImportExpensePoints = async (yearValue, monthValue) => {
     return aggregateImportExpensesByDay(aggregatedRecords)
 }
 
+const fetchMonthlyCompletedRevenuePoints = async (yearValue, monthValue) => {
+    const { fromDate, toDate } = buildMonthRange(yearValue, monthValue)
+    const aggregatedRecords = []
+    const baseParams = {
+        page: 1,
+        pageSize: ORDER_PAGE_SIZE,
+        status: 'HoanThanh',
+        fromDate,
+        toDate
+    }
+
+    const firstResponse = await getAdminOrders(baseParams)
+    aggregatedRecords.push(...extractArray(firstResponse))
+
+    const totalItems = resolveTotalItems(firstResponse)
+    const totalPages = ORDER_PAGE_SIZE > 0 ? Math.ceil(totalItems / ORDER_PAGE_SIZE) : 1
+    if (totalPages > 1) {
+        const maxPages = Math.min(totalPages, MAX_ORDER_PAGES)
+        const extraPromises = []
+        for (let page = 2; page <= maxPages; page += 1) {
+            extraPromises.push(getAdminOrders({ ...baseParams, page }))
+        }
+        if (extraPromises.length) {
+            const extraResults = await Promise.allSettled(extraPromises)
+            extraResults.forEach((result) => {
+                if (result.status === 'fulfilled') {
+                    aggregatedRecords.push(...extractArray(result.value))
+                } else {
+                    console.error('getAdminOrders page error', result.reason)
+                }
+            })
+        }
+    }
+
+    return aggregateCompletedOrderRevenueByDay(aggregatedRecords)
+}
+
 const handleFinancePointClick = async ({ xValue, value, metaType, meta }) => {
     const now = new Date()
     const currentYear = toNumberOr(year.value, now.getFullYear())
@@ -432,9 +505,17 @@ const handleFinancePointClick = async ({ xValue, value, metaType, meta }) => {
     try {
         const { fromDate, toDate } = buildDayRange(currentYear, currentMonth, dayNumber)
         if (detailType.value === 'income') {
-            const response = await getAdminOrders({ page: 1, pageSize: 200, fromDate, toDate })
+            const response = await getAdminOrders({ page: 1, pageSize: 200, fromDate, toDate, status: 'HoanThanh' })
             const list = extractArray(response)
-            detailRecords.value = list.map((item, index) => normalizeOrderSummary(item, index))
+            detailRecords.value = list
+                .map((item, index) => normalizeOrderSummary(item, index))
+                .filter((order) => matchesDay(order.completedAt || order.createdAt, currentYear, currentMonth, dayNumber))
+                .filter((order) => order.status === 'HoanThanh')
+                .sort((a, b) => {
+                    const dateA = new Date(a.completedAt)
+                    const dateB = new Date(b.completedAt)
+                    return (dateB.getTime() || 0) - (dateA.getTime() || 0)
+                })
         } else {
             const response = await fetchImportHistory({ page: 1, pageSize: 200, fromDate, toDate })
             const list = extractArray(response)
@@ -463,19 +544,21 @@ const loadDailyStats = async () => {
     loading.value = true
     try {
         const [revenueResult, importsResult] = await Promise.allSettled([
-            getDailyRevenue(currentYear, currentMonth),
+            fetchMonthlyCompletedRevenuePoints(currentYear, currentMonth),
             fetchMonthlyImportExpensePoints(currentYear, currentMonth)
         ])
 
         let incomePoints = []
 
         if (revenueResult.status === 'fulfilled') {
-            const rData = revenueResult.value?.data ?? revenueResult.value
-            revenuePoints.value = normalizePoints(rData?.points ?? [], 'day', 'total')
-            incomePoints = [...revenuePoints.value]
+            const resolvedPoints = Array.isArray(revenueResult.value)
+                ? normalizePoints(revenueResult.value, 'day', 'total')
+                : normalizePoints([], 'day', 'total')
+            revenuePoints.value = resolvedPoints
+            incomePoints = [...resolvedPoints]
         } else {
             revenuePoints.value = []
-            console.error('getDailyRevenue error', revenueResult.reason)
+            console.error('fetchMonthlyCompletedRevenuePoints error', revenueResult.reason)
             ElMessage.error(revenueResult.reason?.response?.data?.message || 'Không thể tải doanh thu theo ngày')
         }
 

@@ -39,14 +39,26 @@
                     <header class="order-head">
                         <div>
                             <div class="order-code">Mã đơn: {{ order.code }}</div>
-                            <div class="order-date">{{ formatDate(order.createdAt) }}</div>
+                            <div class="order-date">Đặt lúc: {{ formatDate(order.createdAt) }}</div>
+                            <div
+                                v-if="order.status === 'HoanThanh' && order.completedAt"
+                                class="order-date order-date--completed"
+                            >
+                                Hoàn thành lúc: {{ formatDate(order.completedAt) }}
+                            </div>
+                            <div
+                                v-else-if="order.status === 'DaHuy' && order.completedAt"
+                                class="order-date order-date--cancelled"
+                            >
+                                Hủy lúc: {{ formatDate(order.completedAt) }}
+                            </div>
                             <div class="customer-line">
                                 <span>{{ order.customerName || 'Khách lẻ' }}</span>
                                 <span class="divider">•</span>
                                 <span>{{ order.customerCode || 'Không rõ mã' }}</span>
                             </div>
                         </div>
-                        <span class="order-status" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span>
+                        <span class="order-status" :class="statusClass(order.status)">{{ order.statusLabel || statusLabel(order.status) }}</span>
                     </header>
 
                     <div class="order-summary">
@@ -55,6 +67,10 @@
                             <span class="summary-line">Thanh toán: {{ order.paymentMethodLabel }}</span>
                         </div>
                         <span class="order-total">{{ formatPrice(order.total) }}</span>
+                    </div>
+
+                    <div v-if="order.status === 'DaHuy' && order.cancelReason" class="order-cancel-reason">
+                        Lý do hủy: {{ order.cancelReason }}
                     </div>
 
                     <transition name="fade">
@@ -122,13 +138,15 @@ import { getAdminOrders, updateAdminOrderStatus, getOrderByCode } from '@/api/or
 const statusTabs = [
     { key: 'DaDatHang', label: 'Đã đặt hàng' },
     { key: 'DangGiao', label: 'Đang giao' },
-    { key: 'HoanThanh', label: 'Hoàn thành' }
+    { key: 'HoanThanh', label: 'Hoàn thành' },
+    { key: 'DaHuy', label: 'Đã hủy' }
 ]
 
 const STATUS_LABEL_MAP = {
     DaDatHang: 'Đã đặt hàng',
     DangGiao: 'Đang giao',
-    HoanThanh: 'Hoàn thành'
+    HoanThanh: 'Hoàn thành',
+    DaHuy: 'Đã hủy'
 }
 
 const loading = ref(false)
@@ -177,6 +195,7 @@ const canonicalStatus = (value) => {
     if (!key) return 'DaDatHang'
     if (key.includes('danggiao')) return 'DangGiao'
     if (key.includes('hoanthanh')) return 'HoanThanh'
+    if (key.includes('dahuy') || key.includes('huy')) return 'DaHuy'
     if (key.includes('dadathang')) return 'DaDatHang'
     return 'DaDatHang'
 }
@@ -214,6 +233,8 @@ const interpretPaymentMethod = (value, fallback) => {
 const normalizeOrder = (raw, index) => {
     const items = normalizeItems(raw.items ?? raw.chitiet ?? raw.orderDetails)
     const createdAt = raw.createdAt ?? raw.ngaylap ?? raw.createdDate ?? raw.created_time ?? ''
+    const completedAt =
+        raw.completedAt ?? raw.completedDate ?? raw.ngayHoanThanh ?? raw.completed_time ?? raw.thoigianhoanthanh ?? ''
     const status = canonicalStatus(raw.status ?? raw.trangthai)
     const total = Number(raw.total ?? raw.tongtien ?? raw.amount ?? items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0))
     const code = raw.code ?? raw.orderCode ?? raw.mahd ?? raw.id ?? `ORDER-${index + 1}`
@@ -227,10 +248,13 @@ const normalizeOrder = (raw, index) => {
         code: String(code),
         createdAt,
         status,
+        statusLabel: statusLabel(status),
         total,
         items,
         paymentMethod: payment.code,
         paymentMethodLabel: payment.label,
+        completedAt,
+        cancelReason: raw.cancelReason ?? raw.lyDoHuy ?? raw.reason ?? '',
         customerCode:
             raw.customerCode ?? raw.makh ?? customer.code ?? customer.customerCode ?? customer.makh ?? customer.id ?? '',
         customerName: raw.customerName ?? raw.tenkh ?? customer.fullName ?? customer.name ?? '',
@@ -268,6 +292,8 @@ const statusClass = (status) => {
             return 'status-shipping'
         case 'HoanThanh':
             return 'status-completed'
+        case 'DaHuy':
+            return 'status-cancelled'
         default:
             return 'status-default'
     }
@@ -291,7 +317,11 @@ const ensureOrderDetails = async (order) => {
                       items: normalized.items,
                       total: normalized.total || o.total,
                       paymentMethod: normalized.paymentMethod || o.paymentMethod,
-                      paymentMethodLabel: normalized.paymentMethodLabel || o.paymentMethodLabel
+                      paymentMethodLabel: normalized.paymentMethodLabel || o.paymentMethodLabel,
+                      status: normalized.status || o.status,
+                      statusLabel: normalized.statusLabel || o.statusLabel,
+                      completedAt: normalized.completedAt || o.completedAt,
+                      cancelReason: normalized.cancelReason || o.cancelReason
                   }
                 : o
         )
@@ -311,8 +341,8 @@ const fetchOrders = async () => {
         const response = await getAdminOrders({ page: 1, pageSize: 200 })
         const list = extractList(response)
         orders.value = list.map((order, index) => normalizeOrder(order, index)).sort((a, b) => {
-            const dateA = new Date(a.createdAt)
-            const dateB = new Date(b.createdAt)
+            const dateA = new Date(a.completedAt || a.createdAt)
+            const dateB = new Date(b.completedAt || b.createdAt)
             return (dateB.getTime() || 0) - (dateA.getTime() || 0)
         })
     } catch (err) {
@@ -336,7 +366,9 @@ const moveToShipping = async (order) => {
         await updateAdminOrderStatus(order.customerCode, order.code, 'DangGiao')
         ElMessage.success('Đã chuyển đơn sang trạng thái "Đang giao"')
         orders.value = orders.value.map((o) =>
-            o.code === order.code ? { ...o, status: 'DangGiao' } : o
+            o.code === order.code
+                ? { ...o, status: 'DangGiao', statusLabel: statusLabel('DangGiao') }
+                : o
         )
     } catch (err) {
         console.error('update status error', err)
@@ -486,6 +518,16 @@ onMounted(fetchOrders)
     color: #6b7280;
 }
 
+.order-date--completed {
+    color: #166534;
+    font-weight: 600;
+}
+
+.order-date--cancelled {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
 .customer-line {
     font-size: 13px;
     color: #4b5563;
@@ -520,12 +562,26 @@ onMounted(fetchOrders)
     color: #166534;
 }
 
+.status-cancelled {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
 .order-summary {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.order-cancel-reason {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .summary-left {

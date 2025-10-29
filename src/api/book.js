@@ -44,6 +44,20 @@ export function getBookByCode(code) {
   })
 }
 
+export function getBookCategories() {
+  return request({
+    url: '/Books/categories',
+    method: 'get'
+  })
+}
+
+export function getBookPublishers() {
+  return request({
+    url: '/Books/publishers',
+    method: 'get'
+  })
+}
+
 export function listBook(data) {
   // Build query params
   let url = `/book-list?per_page=${data.per_page}&page=${data.page}`;
