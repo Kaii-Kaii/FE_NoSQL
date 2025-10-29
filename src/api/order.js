@@ -18,6 +18,19 @@ export async function confirmOrder(customerCode, orderCode) {
   })
 }
 
+// Khách hủy đơn hàng với lý do
+export async function cancelOrder(customerCode, orderCode, reason) {
+  const payload = {}
+  if (reason !== undefined && reason !== null) {
+    payload.reason = reason
+  }
+  return request({
+    url: `/Orders/${encodeURIComponent(customerCode)}/orders/${encodeURIComponent(orderCode)}/cancel`,
+    method: 'put',
+    data: payload
+  })
+}
+
 // Lấy chi tiết đơn hàng theo mã
 export async function getOrderByCode(orderCode) {
   return request({
@@ -80,6 +93,7 @@ export default {
   createOrder,
   getOrdersByCustomer,
   confirmOrder,
+  cancelOrder,
   getOrderByCode,
   getAdminOrders,
   updateAdminOrderStatus
