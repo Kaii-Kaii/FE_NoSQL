@@ -887,19 +887,19 @@ function formatPrice(price) {
   display: flex;
   align-items: center;
   background: #fff;
-  border: 2px solid #ffe0d5;
+  border: 2px solid rgba(240, 147, 251, 0.3);
   border-radius: 999px;
   padding: 6px 16px;
-  box-shadow: 0 6px 18px rgba(209, 112, 87, 0.15);
+  box-shadow: 0 6px 18px rgba(240, 147, 251, 0.15);
   transition: border-color 0.2s ease;
 }
 
 .book-search-form:focus-within {
-  border-color: #d17057;
+  border-color: #f5576c;
 }
 
 .book-search-form .search-icon {
-  color: #d17057;
+  color: #f5576c;
   font-size: 16px;
   margin-right: 12px;
 }
@@ -921,7 +921,7 @@ function formatPrice(price) {
 .book-search-form .clear-btn {
   border: none;
   background: transparent;
-  color: #d17057;
+  color: #f5576c;
   font-size: 16px;
   cursor: pointer;
   padding: 6px;
@@ -931,7 +931,7 @@ function formatPrice(price) {
 }
 
 .book-search-form .clear-btn:hover {
-  color: #b85d47;
+  color: #f093fb;
 }
 
 .book-search-meta,
@@ -944,7 +944,7 @@ function formatPrice(price) {
 .book-search-meta span,
 .search-meta span {
   font-weight: 600;
-  color: #d17057;
+  color: #f5576c;
 }
 
 /* Cart preview dropdown */
@@ -1039,15 +1039,17 @@ function formatPrice(price) {
   border-radius: 16px;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.15);
   height: 100%;
   display: flex;
   flex-direction: column;
+  border: 2px solid transparent;
 }
 
 .top-book-card-inner:hover {
   transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 32px rgba(240, 147, 251, 0.3);
+  border-color: #f093fb;
 }
 
 /* Top Book Image */
@@ -1056,7 +1058,7 @@ function formatPrice(price) {
   width: 100%;
   padding-top: 140%;
   overflow: hidden;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   cursor: pointer;
 }
 
@@ -1112,12 +1114,12 @@ function formatPrice(price) {
 }
 
 .top-wishlist-btn:hover {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
 .top-wishlist-btn.active {
-  background-color: #d17057;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   animation: heartBeat 0.5s;
 }
@@ -1130,7 +1132,7 @@ function formatPrice(price) {
 }
 
 .top-cart-btn:hover {
-  background-color: #27ae60;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
@@ -1179,7 +1181,7 @@ function formatPrice(price) {
 .top-price-current {
   font-size: 16px;
   font-weight: 700;
-  color: #d17057;
+  color: #f5576c;
   line-height: 1;
 }
 
@@ -1195,7 +1197,7 @@ function formatPrice(price) {
 
 .top-book-author i {
   font-size: 11px;
-  color: #d17057;
+  color: #f5576c;
 }
 
 /* Top Title */
@@ -1219,7 +1221,7 @@ function formatPrice(price) {
 }
 
 .top-book-title a:hover {
-  color: #d17057;
+  color: #f5576c;
 }
 
 /* Responsive Adjustments for Top Books */

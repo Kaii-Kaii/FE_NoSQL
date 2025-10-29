@@ -258,47 +258,18 @@ onMounted(() => {
   text-align: center;
   padding: 15px;
   border-radius: 8px;
+  border: 2px solid transparent;
 }
 
 .categorie-style1:hover {
   transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 5px 15px rgba(240, 147, 251, 0.3);
+  border-color: #f093fb;
 }
 
 .categorie-style1.active {
-  background-color: #f0f0f0;
-  border: 2px solid #d17057;
-}
-
-.categorie-title {
-  text-transform: capitalize;
-  margin-top: 10px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.categorie-style1 img {
-  width: 100%;
-  height: auto;
-  max-width: 80px;
-  margin: 0 auto;
-  display: block;
-}
-</style>
-
-
-<style scoped>
-.categorie-style1 {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.categorie-style1:hover {
-  transform: translateY(-5px);
-}
-
-.categorie-style1.active {
+  background: linear-gradient(135deg, rgba(240, 147, 251, 0.1) 0%, rgba(245, 87, 108, 0.1) 100%);
+  border: 2px solid #f5576c;
   border-radius: 8px;
 }
 

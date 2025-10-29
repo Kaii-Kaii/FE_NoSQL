@@ -19,6 +19,7 @@ onMounted(async () => {
         '/src/assets/css/animate.min.css',
         '/src/assets/css/nouislider.css',
         '/src/assets/css/style.css',
+        '/src/assets/css/theme-orange.css', // Orange/Pink gradient theme override
     ]
 
     // thêm <link> vào head

@@ -146,7 +146,7 @@ onMounted(load)
   transform: translateX(-50%);
   width: 80px;
   height: 4px;
-  background: linear-gradient(90deg, #d17057 0%, #e89b87 100%);
+  background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
   border-radius: 2px;
 }
 
@@ -168,7 +168,7 @@ onMounted(load)
   display: inline-block; 
   padding: 12px 24px; 
   border-radius: 8px; 
-  background: #d17057; 
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: #fff; 
   text-decoration: none; 
   border: none; 
@@ -176,13 +176,13 @@ onMounted(load)
   font-weight: 600;
   font-size: 14px;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(209, 112, 87, 0.3);
+  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
 }
 
 .btn:hover {
-  background: #c15e46;
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(209, 112, 87, 0.4);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.5);
 }
 
 .btn:active {
@@ -211,7 +211,7 @@ onMounted(load)
 .card:hover {
   box-shadow: 0 8px 24px rgba(0,0,0,0.1);
   transform: translateY(-4px);
-  border-color: rgba(209, 112, 87, 0.2);
+  border-color: rgba(245, 87, 108, 0.3);
 }
 
 .thumb { 
@@ -252,7 +252,7 @@ onMounted(load)
 }
 
 .title a:hover {
-  color: #d17057;
+  color: #f5576c;
 }
 
 .author { 
@@ -275,7 +275,7 @@ onMounted(load)
 }
 
 .price { 
-  color: #d17057; 
+  color: #f5576c; 
   font-weight: 700; 
   font-size: 20px;
   margin-bottom: 0;
@@ -308,13 +308,13 @@ onMounted(load)
 }
 
 .btn.add { 
-  background: #d17057;
-  box-shadow: 0 2px 8px rgba(209, 112, 87, 0.3);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
 }
 
 .btn.add:hover {
-  background: #c15e46;
-  box-shadow: 0 4px 12px rgba(209, 112, 87, 0.4);
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.5);
 }
 
 /* Responsive Design */
