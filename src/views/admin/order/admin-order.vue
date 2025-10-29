@@ -1,7 +1,15 @@
 <template>
     <div class="admin-orders">
         <header class="page-header">
-            <h1>Quản lý đơn hàng</h1>
+            <div class="header-content">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div>
+                    <h1>Quản lý đơn hàng</h1>
+                    <p class="subtitle">Theo dõi và xử lý đơn hàng</p>
+                </div>
+            </div>
             <button class="refresh-btn" type="button" :disabled="loading" @click="fetchOrders">
                 <i class="fas fa-sync-alt" aria-hidden="true"></i>
                 <span>Làm mới</span>
@@ -385,34 +393,70 @@ onMounted(fetchOrders)
 .admin-orders {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 
 .page-header {
+    background: white;
+    padding: 24px;
+    border-radius: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08);
+    border: 1px solid rgba(245, 87, 108, 0.1);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header .icon-wrapper {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
 }
 
 .page-header h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1f2937;
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.page-header .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
 }
 
 .refresh-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border-radius: 8px;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
     border: none;
-    background: #2563eb;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     color: #fff;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
 }
 
 .refresh-btn:disabled {
@@ -421,7 +465,8 @@ onMounted(fetchOrders)
 }
 
 .refresh-btn:not(:disabled):hover {
-    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 87, 108, 0.4);
 }
 
 .order-tabs {
@@ -431,31 +476,42 @@ onMounted(fetchOrders)
 }
 
 .tab-btn {
-    padding: 10px 18px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
     background: #fff;
     cursor: pointer;
     font-weight: 600;
-    color: #374151;
+    color: #666;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    border-color: #f093fb;
+    color: #f5576c;
+    transform: translateY(-1px);
 }
 
 .tab-btn.active {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
 }
 
 .badge {
-    background: rgba(255, 255, 255, 0.2);
-    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 3px 10px;
     border-radius: 999px;
     font-size: 12px;
+    font-weight: 700;
+}
+
+.tab-btn.active .badge {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .state-block {
@@ -466,8 +522,9 @@ onMounted(fetchOrders)
     gap: 10px;
     padding: 40px 20px;
     color: #6b7280;
-    border: 1px dashed #d1d5db;
-    border-radius: 10px;
+    border: 2px dashed rgba(245, 87, 108, 0.2);
+    border-radius: 16px;
+    background: white;
 }
 
 .state-block.error {
@@ -476,12 +533,20 @@ onMounted(fetchOrders)
 }
 
 .retry-btn {
-    padding: 8px 16px;
+    padding: 10px 20px;
     border: none;
-    border-radius: 6px;
-    background: #ef4444;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     color: #fff;
+    font-weight: 600;
     cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
+.retry-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 87, 108, 0.4);
 }
 
 .order-list {
@@ -491,14 +556,21 @@ onMounted(fetchOrders)
 }
 
 .order-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 18px;
+    border: 2px solid rgba(245, 87, 108, 0.1);
+    border-radius: 16px;
+    padding: 20px;
     background: #fff;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    box-shadow: 0 2px 6px rgba(55, 65, 81, 0.08);
+    gap: 16px;
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08);
+    transition: all 0.3s ease;
+}
+
+.order-card:hover {
+    border-color: rgba(245, 87, 108, 0.2);
+    box-shadow: 0 4px 16px rgba(245, 87, 108, 0.12);
+    transform: translateY(-2px);
 }
 
 .order-head {
@@ -510,7 +582,11 @@ onMounted(fetchOrders)
 
 .order-code {
     font-weight: 700;
-    color: #111827;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 16px;
 }
 
 .order-date {
@@ -541,30 +617,35 @@ onMounted(fetchOrders)
 }
 
 .order-status {
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 999px;
     font-size: 13px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .status-default {
-    background: #fef3c7;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 146, 60, 0.15) 100%);
     color: #92400e;
+    border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
 .status-shipping {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: linear-gradient(135deg, rgba(240, 147, 251, 0.15) 0%, rgba(245, 87, 108, 0.15) 100%);
+    color: #f5576c;
+    border: 1px solid rgba(245, 87, 108, 0.3);
 }
 
 .status-completed {
-    background: #dcfce7;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
     color: #166534;
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .status-cancelled {
-    background: #fee2e2;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
     color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .order-summary {
@@ -576,9 +657,10 @@ onMounted(fetchOrders)
 }
 
 .order-cancel-reason {
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: #fef2f2;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.2);
     color: #b91c1c;
     font-size: 14px;
     line-height: 1.5;
@@ -593,9 +675,9 @@ onMounted(fetchOrders)
 }
 
 .order-total {
-    font-size: 20px;
-    font-weight: 700;
-    color: #111827;
+    font-size: 22px;
+    font-weight: 800;
+    color: #f5576c;
 }
 
 .order-details table {

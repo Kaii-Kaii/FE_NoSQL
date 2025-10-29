@@ -1,8 +1,19 @@
 <template>
     <div class="admin-warehouse">
         <header class="page-header">
-            <h1>Quản lý kho hàng</h1>
-            <el-button type="primary" plain :loading="historyLoading" @click="loadHistory">Làm mới lịch sử</el-button>
+            <div class="header-content">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-warehouse"></i>
+                </div>
+                <div>
+                    <h1>Quản lý kho hàng</h1>
+                    <p class="subtitle">Nhập hàng và theo dõi lịch sử</p>
+                </div>
+            </div>
+            <el-button type="primary" size="large" plain :loading="historyLoading" @click="loadHistory" class="refresh-btn">
+                <i class="fa-solid fa-sync-alt"></i>
+                <span>Làm mới</span>
+            </el-button>
         </header>
 
         <section class="insight-strip">
@@ -707,16 +718,68 @@ onMounted(() => {
 }
 
 .page-header {
+    background: white;
+    padding: 24px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08);
+    border: 1px solid rgba(245, 87, 108, 0.1);
+}
+
+.header-content {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
+}
+
+.page-header .icon-wrapper {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
 }
 
 .page-header h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1f2937;
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.page-header .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+}
+
+.refresh-btn {
+    background: white !important;
+    border: 2px solid rgba(245, 87, 108, 0.3) !important;
+    color: #f5576c !important;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.refresh-btn:hover {
+    background: linear-gradient(135deg, rgba(240, 147, 251, 0.1) 0%, rgba(245, 87, 108, 0.1) 100%) !important;
+    border-color: #f5576c !important;
+    transform: translateY(-1px);
 }
 
 .insight-strip {
@@ -729,32 +792,43 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: linear-gradient(135deg, #f9fafb 0%, #eef2ff 100%);
-    padding: 16px;
-    border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
+    background: white;
+    border: 2px solid rgba(245, 87, 108, 0.1);
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08);
+    transition: all 0.3s ease;
+}
+
+.insight-card:hover {
+    border-color: rgba(245, 87, 108, 0.2);
+    box-shadow: 0 4px 16px rgba(245, 87, 108, 0.12);
+    transform: translateY(-2px);
 }
 
 .insight-icon {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     border-radius: 12px;
     display: grid;
     place-items: center;
     color: #fff;
-    font-size: 18px;
+    font-size: 20px;
 }
 
 .insight-icon.primary {
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
 }
 
 .insight-icon.success {
     background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
 }
 
 .insight-icon.info {
     background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
 .insight-meta {
@@ -765,19 +839,22 @@ onMounted(() => {
 }
 
 .insight-label {
-    font-size: 13px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #6366f1;
+    color: #999;
+    font-weight: 600;
 }
 
 .insight-meta strong {
     font-size: 24px;
-    font-weight: 700;
+    font-weight: 800;
+    color: #f5576c;
 }
 
 .insight-meta small {
     color: #6b7280;
+    font-size: 12px;
 }
 
 .content-grid {

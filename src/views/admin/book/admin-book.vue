@@ -1,21 +1,37 @@
 <template>
     <div class="admin-book">
-        <div class="header">
-            <h1>Quản lý sách</h1>
-            <el-button type="primary" @click="handleCreateOrEditBook()">Thêm mới sách</el-button>
+        <div class="page-header">
+            <div class="header-content">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-book"></i>
+                </div>
+                <div>
+                    <h1>Quản lý sách</h1>
+                    <p class="subtitle">Quản lý danh sách sách trong hệ thống</p>
+                </div>
+            </div>
+            <el-button type="primary" @click="handleCreateOrEditBook()" size="large" class="add-btn">
+                <i class="fa-solid fa-plus"></i>
+                <span>Thêm sách mới</span>
+            </el-button>
         </div>
 
         <el-card shadow="never" class="content-card">
             <div class="table-toolbar">
                 <el-input
                     v-model="searchKeyword"
-                    placeholder="Tìm theo mã hoặc tên sách"
+                    placeholder="Tìm theo mã hoặc tên sách..."
                     clearable
+                    size="large"
                     class="search-input"
                     @clear="handleSearch"
                     @keyup.enter="handleSearch"
-                />
-                <el-button type="primary" :loading="loading" @click="handleSearch">
+                >
+                    <template #prefix>
+                        <i class="fa-solid fa-search"></i>
+                    </template>
+                </el-input>
+                <el-button type="primary" size="large" :loading="loading" @click="handleSearch" class="search-btn">
                     <i class="fas fa-search" aria-hidden="true"></i>
                     <span>Tìm kiếm</span>
                 </el-button>
@@ -36,7 +52,7 @@
                 <el-table-column prop="author" label="Tác giả" min-width="180" show-overflow-tooltip />
                 <el-table-column label="Giá bán" width="120">
                     <template #default="scope">
-                        {{ formatPrice(scope.row.price) }}
+                        <span class="price-text">{{ formatPrice(scope.row.price) }}</span>
                     </template>
                 </el-table-column>
                 <el-table-column prop="inStock" label="Tồn kho" width="100" />
@@ -88,7 +104,7 @@
                 <section class="detail-section">
                     <h3>Tình trạng & Giá</h3>
                     <ul>
-                        <li><strong>Giá bán:</strong> {{ formatPrice(currentDetail.price) }}</li>
+                        <li><strong>Giá bán:</strong> <span class="price-text">{{ formatPrice(currentDetail.price) }}</span></li>
                         <li><strong>Tồn kho:</strong> {{ currentDetail.inStock }}</li>
                         <li><strong>Trạng thái:</strong> {{ currentDetail.status || 'Không rõ' }}</li>
                     </ul>
@@ -115,9 +131,9 @@
             </div>
             <template #footer>
                 <div class="detail-footer">
-                    <el-button @click="detailsVisible = false">Đóng</el-button>
-                    <el-button type="primary" @click="handleCreateOrEditBook(currentDetail)">Chỉnh sửa</el-button>
-                    <el-button type="danger" @click="deleteBook(currentDetail?.code)">Xóa</el-button>
+                    <el-button @click="detailsVisible = false" size="large">Đóng</el-button>
+                    <el-button type="primary" size="large" @click="handleCreateOrEditBook(currentDetail)">Chỉnh sửa</el-button>
+                    <el-button type="danger" size="large" @click="deleteBook(currentDetail?.code)">Xóa</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -289,40 +305,137 @@ defineExpose({ getList })
 .admin-book {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    /* Make the admin book view fit the viewport so the page doesn't scroll; content-card will scroll internally */
+    gap: 20px;
     min-height: calc(100vh - 80px);
 }
 
-.header {
+.page-header {
+    background: white;
+    padding: 24px;
+    border-radius: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08);
+    border: 1px solid rgba(245, 87, 108, 0.1);
 }
 
-.header h1 {
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header .icon-wrapper {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
     font-size: 24px;
-    font-weight: 700;
-    color: #1f2937;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
+.page-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.page-header .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+}
+
+.add-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    transition: all 0.3s ease;
+}
+
+.add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 87, 108, 0.4) !important;
 }
 
 .content-card {
-    padding: 16px;
+    padding: 20px !important;
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+    border-radius: 16px !important;
+    border: 1px solid rgba(245, 87, 108, 0.1);
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08) !important;
 }
 
 .table-toolbar {
     display: flex;
     gap: 12px;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .search-input {
-    max-width: 320px;
+    max-width: 400px;
+}
+
+:deep(.search-input .el-input__wrapper) {
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+:deep(.search-input .el-input__wrapper:hover) {
+    border-color: #f093fb;
+}
+
+:deep(.search-input .el-input__wrapper.is-focus) {
+    border-color: #f5576c;
+    box-shadow: 0 0 0 4px rgba(245, 87, 108, 0.1);
+}
+
+:deep(.search-input .el-input__prefix) {
+    color: #999;
+}
+
+:deep(.search-input .el-input__wrapper.is-focus .el-input__prefix) {
+    color: #f5576c;
+}
+
+.search-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+    transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4) !important;
+}
+
+.price-text {
+    color: #f5576c;
+    font-weight: 600;
 }
 
 .pagination {
@@ -330,11 +443,28 @@ defineExpose({ getList })
     justify-content: flex-end;
 }
 
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+:deep(.el-pagination.is-background .el-pager li:hover) {
+    color: #f5576c;
+}
+
+:deep(.el-button--primary) {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border: none;
+}
+
+:deep(.el-button--primary:hover) {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+}
+
 .table-area {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    /* allow the table and pagination to scroll inside the card */
     overflow: auto;
     flex: 1 1 auto;
 }
@@ -344,15 +474,6 @@ defineExpose({ getList })
     justify-content: flex-end;
     padding-top: 8px;
     background: transparent;
-}
-
-.header {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    background: #fff;
-    padding-top: 6px;
-    padding-bottom: 6px;
 }
 
 .detail-content {
@@ -368,22 +489,27 @@ defineExpose({ getList })
 
 .detail-cover img {
     max-width: 220px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(245, 87, 108, 0.2);
+    border: 2px solid rgba(245, 87, 108, 0.1);
 }
 
 .detail-section {
-    background: #f9fafb;
-    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(240, 147, 251, 0.05) 0%, rgba(245, 87, 108, 0.05) 100%);
+    border-radius: 12px;
     padding: 16px;
+    border: 1px solid rgba(245, 87, 108, 0.1);
 }
 
 .detail-section h3 {
     margin-top: 0;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .detail-section ul {
@@ -392,9 +518,19 @@ defineExpose({ getList })
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     color: #4b5563;
     font-size: 14px;
+}
+
+.detail-section ul li {
+    display: flex;
+    gap: 8px;
+}
+
+.detail-section ul li strong {
+    min-width: 120px;
+    color: #666;
 }
 
 .detail-section p {
@@ -407,5 +543,30 @@ defineExpose({ getList })
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .table-toolbar {
+        flex-direction: column;
+    }
+
+    .search-input {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .search-btn {
+        width: 100%;
+    }
 }
 </style>
