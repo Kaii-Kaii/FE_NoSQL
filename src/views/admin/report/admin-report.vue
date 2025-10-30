@@ -1,14 +1,27 @@
 <template>
     <div class="admin-report">
-        <h1>Báo cáo thống kê</h1>
+        <div class="page-header">
+            <div class="header-content">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div>
+                    <h1>Báo cáo thống kê</h1>
+                    <p class="subtitle">Phân tích thu chi và doanh số</p>
+                </div>
+            </div>
+        </div>
 
         <el-card class="report-card" shadow="never">
             <div class="controls">
-                <el-input-number v-model="year" :min="2000" :max="2100" label="Năm" />
-                <el-select v-model="month" placeholder="Chọn tháng" style="width:140px">
-                    <el-option v-for="m in 12" :key="m" :label="m" :value="m" />
+                <el-input-number v-model="year" :min="2000" :max="2100" label="Năm" size="large" />
+                <el-select v-model="month" placeholder="Chọn tháng" style="width:160px" size="large">
+                    <el-option v-for="m in 12" :key="m" :label="`Tháng ${m}`" :value="m" />
                 </el-select>
-                <el-button type="primary" @click="loadDailyStats" :loading="loading">Tải dữ liệu</el-button>
+                <el-button type="primary" size="large" @click="loadDailyStats" :loading="loading" class="load-btn">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Tải dữ liệu</span>
+                </el-button>
             </div>
 
             <div class="charts">
@@ -55,7 +68,7 @@
                         <el-table-column prop="customerName" label="Khách hàng" min-width="160" show-overflow-tooltip />
                         <el-table-column prop="statusLabel" label="Trạng thái" width="140" />
                         <el-table-column prop="total" label="Tổng đơn" width="160">
-                            <template #default="scope">{{ formatCurrency(scope.row.total) }}</template>
+                            <template #default="scope"><span class="price-text">{{ formatCurrency(scope.row.total) }}</span></template>
                         </el-table-column>
                         <el-table-column prop="completedAtLabel" label="Hoàn thành lúc" min-width="180" />
                     </el-table>
@@ -63,7 +76,7 @@
                         <el-table-column prop="code" label="Mã phiếu" width="140" />
                         <el-table-column prop="totalQuantity" label="Số lượng" width="120" />
                         <el-table-column prop="totalAmount" label="Giá trị" width="160">
-                            <template #default="scope">{{ formatCurrency(scope.row.totalAmount) }}</template>
+                            <template #default="scope"><span class="price-text">{{ formatCurrency(scope.row.totalAmount) }}</span></template>
                         </el-table-column>
                         <el-table-column prop="importDateLabel" label="Thời gian" min-width="180" />
                         <el-table-column prop="note" label="Ghi chú" min-width="200" show-overflow-tooltip />
@@ -589,17 +602,124 @@ onMounted(() => {
 .admin-report {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 20px;
 }
+
+.page-header {
+    background: white;
+    padding: 24px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08);
+    border: 1px solid rgba(245, 87, 108, 0.1);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.page-header .icon-wrapper {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
+.page-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.page-header .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+}
+
 .report-card {
-    padding: 16px;
+    padding: 20px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(245, 87, 108, 0.1);
+    box-shadow: 0 2px 12px rgba(245, 87, 108, 0.08) !important;
 }
+
 .controls {
     display: flex;
     gap: 12px;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
 }
+
+:deep(.el-input-number .el-input__wrapper) {
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+:deep(.el-input-number .el-input__wrapper:hover) {
+    border-color: #f093fb;
+}
+
+:deep(.el-input-number .el-input__wrapper.is-focus) {
+    border-color: #f5576c;
+    box-shadow: 0 0 0 4px rgba(245, 87, 108, 0.1);
+}
+
+:deep(.el-select .el-input__wrapper) {
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+:deep(.el-select .el-input__wrapper:hover) {
+    border-color: #f093fb;
+}
+
+:deep(.el-select .el-input__wrapper.is-focus) {
+    border-color: #f5576c;
+    box-shadow: 0 0 0 4px rgba(245, 87, 108, 0.1);
+}
+
+.load-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.load-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 87, 108, 0.4) !important;
+}
+
+.price-text {
+    color: #f5576c;
+    font-weight: 600;
+}
+
 .charts {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -625,7 +745,11 @@ onMounted(() => {
 .detail-panel-header h3 {
     margin: 0;
     font-size: 18px;
-    color: #111827;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .detail-panel-header p {
@@ -635,8 +759,9 @@ onMounted(() => {
 }
 
 .detail-panel-header .detail-summary {
-    color: #2563eb;
-    font-weight: 600;
+    color: #f5576c;
+    font-weight: 700;
+    font-size: 16px;
 }
 
 .detail-loading {
