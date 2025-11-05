@@ -84,6 +84,11 @@ const routes = [
         component: () => import("@/views/admin/report/admin-report.vue"),
       },
       {
+        path: "statistic",
+        name: "admin-statistic",
+        component: () => import('@/views/admin/statistic/admin-statistic.vue')
+      },
+      {
         path: "warehouse",
         name: "admin-warehouse",
         component: () => import("@/views/admin/warehouse/admin-warehouse.vue"),
