@@ -11,31 +11,43 @@
                 </div>
             </div>
         </div>
+
         <div class="sidebar-body">
-            <router-link to="/admin/order" class="menu-item" :class="{'active': isActive('dashboard')}">
+            <router-link to="/admin/order" class="menu-item" :class="{ 'active': isActive('dashboard') }">
                 <div class="icon-box">
                     <i class="fa-solid fa-clipboard-list"></i>
                 </div>
                 <span>Đơn hàng</span>
             </router-link>
-            <router-link to="/admin/book" class="menu-item" :class="{'active': isActive('books')}">
+
+            <router-link to="/admin/book" class="menu-item" :class="{ 'active': isActive('books') }">
                 <div class="icon-box">
                     <i class="fa-solid fa-book"></i>
                 </div>
                 <span>Quản lý sách</span>
             </router-link>
-            <router-link to="/admin/report" class="menu-item" :class="{'active': isActive('reports')}">
+
+            <router-link to="/admin/report" class="menu-item" :class="{ 'active': isActive('reports') }">
                 <div class="icon-box">
                     <i class="fa-solid fa-chart-pie"></i>
                 </div>
                 <span>Báo cáo</span>
             </router-link>
-            <router-link to="/admin/warehouse" class="menu-item" :class="{'active': isActive('warehouse')}">
+
+            <router-link to="/admin/statistic" class="menu-item" :class="{ 'active': isActive('statistic') }">
+                <div class="icon-box">
+                    <i class="fa-solid fa-chart-column"></i>
+                </div>
+                <span>Thống kê</span>
+            </router-link>
+
+            <router-link to="/admin/warehouse" class="menu-item" :class="{ 'active': isActive('warehouse') }">
                 <div class="icon-box">
                     <i class="fa-solid fa-warehouse"></i>
                 </div>
                 <span>Kho hàng</span>
             </router-link>
+
             <button type="button" class="menu-item logout-btn" @click="onLogout">
                 <div class="icon-box">
                     <i class="fa-solid fa-right-from-bracket"></i>
@@ -47,27 +59,29 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
+import { computed } from 'vue'
+import { useStore } from 'vuex'
+import { useRoute } from 'vue-router'
 
-const store = useStore();
-const route = useRoute();
+const store = useStore()
+const route = useRoute()
 
+// Map route name -> menu key
 const adminMenuMap = {
     'admin-order': 'dashboard',
     'admin-book': 'books',
     'admin-report': 'reports',
+    'admin-statistic': 'statistic',
     'admin-warehouse': 'warehouse',
-};
+}
 
-const currentMenu = computed(() => adminMenuMap[route.name] || 'dashboard');
+const currentMenu = computed(() => adminMenuMap[route.name] || 'dashboard')
 
-const isActive = (menuKey) => currentMenu.value === menuKey;
+const isActive = (menuKey) => currentMenu.value === menuKey
 
 const onLogout = async () => {
-    await store.dispatch('user/logout');
-};
+    await store.dispatch('user/logout')
+}
 </script>
 
 <style scoped>

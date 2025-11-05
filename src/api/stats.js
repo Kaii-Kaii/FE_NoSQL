@@ -39,3 +39,15 @@ export function getTopBooks(limit = 10) {
     method: 'get'
   })
 }
+
+// NEW: thống kê khách hàng theo khoảng thời gian
+export function getCustomerStatistic(from, to) {
+  const params = {}
+  if (from) params.from = from
+  if (to) params.to = to
+  return request({
+    url: '/Admin/statistic/customers',
+    method: 'get',
+    params
+  })
+}
